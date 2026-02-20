@@ -87,6 +87,20 @@ const swaggerOptions = {
             biometricToken: { type: 'string', description: 'Alternative to PIN if biometric challenge was solved' },
           },
         },
+        DepositRequest: {
+          type: 'object',
+          required: ['amount'],
+          properties: {
+            amount: { type: 'number', description: 'Amount to deposit (e.g. 1000.50)' },
+          },
+        },
+        WithdrawRequest: {
+          type: 'object',
+          required: ['amount'],
+          properties: {
+            amount: { type: 'number', description: 'Amount to withdraw (e.g. 500.00)' },
+          },
+        },
       },
     },
   },

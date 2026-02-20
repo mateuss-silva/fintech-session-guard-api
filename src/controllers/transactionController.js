@@ -65,4 +65,111 @@ function getHistory(req, reply) {
   }
 }
 
-module.exports = { getHistory };
+/**
+ * @swagger
+ * /api/transactions/deposit:
+ *   post:
+ *     summary: Deposit BRL funds into the local wallet portfolio
+ *     tags: [Transactions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [amount]
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: Deposit amount
+ *     responses:
+ *       200:
+ *         description: Deposit successful
+ */
+function depositMoney(req, reply) {
+  try {
+    const { amount } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return reply.code(400).send({ message: 'Invalid deposit amount' });
+    }
+
+    // Check if BRL portfolio item exists
+    const brlAsset = queryOne('SELECT * FROM portfolio WHERE user_id = ? AND ticker = ?', [req.user.id, 'BRL']);
+    
+    if (brlAsset) {
+      runSql('UPDATE portfolio SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [amount, brlAsset.id]);
+    } else {
+      runSql(
+        'INSERT INTO portfolio (id, user_id, asset_name, asset_type, ticker, quantity, avg_price, current_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [uuidv4(), req.user.id, 'Saldo em Conta (BRL)', 'currency', 'BRL', amount, 1.00, 1.00]
+      );
+    }
+
+    // Log the transaction
+    runSql(
+      'INSERT INTO transactions (id, user_id, type, amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [uuidv4(), req.user.id, 'deposit', amount, 'completed', new Date().toISOString()]
+    );
+
+    return reply.send({ message: 'Deposit successful', amount_deposited: amount });
+  } catch (error) {
+    console.error('Deposit error:', error);
+    throw error;
+  }
+}
+
+/**
+ * @swagger
+ * /api/transactions/withdraw:
+ *   post:
+ *     summary: Withdraw BRL funds from the local wallet portfolio
+ *     tags: [Transactions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [amount]
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: Withdrawal amount
+ *     responses:
+ *       200:
+ *         description: Withdrawal successful
+ */
+function withdrawMoney(req, reply) {
+  try {
+    const { amount } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return reply.code(400).send({ message: 'Invalid withdrawal amount' });
+    }
+
+    const brlAsset = queryOne('SELECT * FROM portfolio WHERE user_id = ? AND ticker = ?', [req.user.id, 'BRL']);
+    
+    if (!brlAsset || brlAsset.quantity < amount) {
+      return reply.code(400).send({ message: 'Insufficient funds for this withdrawal' });
+    }
+
+    runSql('UPDATE portfolio SET quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [amount, brlAsset.id]);
+
+    runSql(
+      'INSERT INTO transactions (id, user_id, type, amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [uuidv4(), req.user.id, 'withdraw', amount, 'completed', new Date().toISOString()]
+    );
+
+    return reply.send({ message: 'Withdrawal successful', amount_withdrawn: amount });
+  } catch (error) {
+    console.error('Withdrawal error:', error);
+    throw error;
+  }
+}
+
+module.exports = { getHistory, depositMoney, withdrawMoney };

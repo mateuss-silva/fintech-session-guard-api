@@ -7,4 +7,6 @@ module.exports = async function (fastify, opts) {
   fastify.addHook('preHandler', checkSessionTimeout);
 
   fastify.get('/history', transactionController.getHistory);
+  fastify.post('/deposit', transactionController.depositMoney);
+  fastify.post('/withdraw', transactionController.withdrawMoney);
 };
