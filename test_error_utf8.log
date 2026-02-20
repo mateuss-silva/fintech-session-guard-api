@@ -1,0 +1,106 @@
+﻿  console.log
+    Γ£à Database initialized successfully
+
+      at log (src/config/database.js:203:11)
+
+Γöé ≡ƒîÉ 16:33:56 POST            /api/trade/buy ΓåÆ 200 in 7.542ms from ::ffff:127.0.0.1
+Γöé ≡ƒîÉ 16:33:56 POST            /api/trade/buy ΓåÆ 401 in 1.466ms from ::ffff:127.0.0.1
+Γöé ≡ƒîÉ 16:33:56 POST            /api/trade/buy ΓåÆ 400 in 1.449ms from ::ffff:127.0.0.1
+Γöé ≡ƒîÉ 16:33:56 POST            /api/trade/sell ΓåÆ 200 in 3.892ms from ::ffff:127.0.0.1
+node.exe : FAIL 
+tests/trade.test.js (5.742 s)
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (FAIL tests/  
+  trade.test.js (5.742 s):St   
+ ring) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+  Trading API
+    POST /api/trade/buy
+      ΓêÜ should buy asset 
+successfully with sufficient 
+funds and valid PIN (38 ms)
+      ΓêÜ should fail buy 
+request with invalid PIN (4 ms)
+      ΓêÜ should fail buy 
+request with insufficient 
+funds (4 ms)
+    POST /api/trade/sell
+      ΓêÜ should sell asset 
+successfully with valid PIN (6 
+ms)
+    GET /api/portfolio/stream
+      ├ù should return initial 
+portfolio value as event 
+stream (5003 ms)
+
+  ΓùÅ Trading API ΓÇ║ GET 
+/api/portfolio/stream ΓÇ║ 
+should return initial 
+portfolio value as event stream
+
+    thrown: "Exceeded timeout 
+of 5000 ms for a test while 
+waiting for `done()` to be 
+called.
+    Add a timeout value to 
+this test to increase the 
+timeout, if this is a 
+long-running test. See https://
+jestjs.io/docs/api#testname-fn-
+timeout."
+
+    [0m [90m  98 |[39m
+     [90m  99 |[39m   
+describe([32m'GET /api/portfol
+io/stream'[39m[33m,[39m () 
+[33m=>[39m {
+    [31m[1m>[22m[39m[90m 
+100 |[39m     it([32m'should 
+return initial portfolio value 
+as event 
+stream'[39m[33m,[39m (done) 
+[33m=>[39m {
+     [90m     |[39m     
+[31m[1m^[22m[39m
+     [90m 101 |[39m         
+[36mconst[39m req 
+[33m=[39m request(app)
+     [90m 102 |[39m          
+ [33m.[39m[36mget[39m([32m
+'/api/portfolio/stream'[39m)
+     [90m 103 |[39m          
+ [33m.[39m[36mset[39m([32m
+'Accept'[39m[33m,[39m [32m'
+text/event-stream'[39m)[33m;
+[39m[0m
+
+      at it 
+(tests/trade.test.js:100:5)
+      at describe 
+(tests/trade.test.js:99:3)
+      at Object.describe 
+(tests/trade.test.js:29:1)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 4 
+passed, 5 total
+Snapshots:   0 total
+Time:        5.778 s
+Ran all test suites matching 
+/tests\\trade.test.js/i.
+Force exiting Jest: Have you 
+considered using 
+`--detectOpenHandles` to 
+detect async operations that 
+kept running after all tests 
+finished?
