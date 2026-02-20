@@ -36,8 +36,8 @@ fastify.register(require('@fastify/cors'), {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
-    // Allow any localhost origin for development
-    if (origin.match(/^https?:\/\/localhost:\d+$/) || origin.match(/^https?:\/\/127\.0\.0\.1:\d+$/)) {
+    // Allow any localhost origin for development (important for Flutter Web)
+    if (origin.match(/^http:\/\/(localhost|127\.0\.0\.1):\d+$/) || origin.match(/^https:\/\/(localhost|127\.0\.0\.1):\d+$/)) {
       return callback(null, true);
     }
 
