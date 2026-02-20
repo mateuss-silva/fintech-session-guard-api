@@ -1,7 +1,7 @@
 /**
  * Global Error Handler Middleware
  */
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, request, reply) => {
   // Default values
   let statusCode = err.statusCode || 500;
   let errorCode = err.errorCode || 'INTERNAL_ERROR';
@@ -18,17 +18,17 @@ const errorHandler = (err, req, res, next) => {
   // In production, we'd use a real logger like Winston/Pino
   if (statusCode >= 500) {
     console.error('💥 Unhandled Exception:', {
-      url: req.originalUrl,
-      method: req.method,
+      url: request.url,
+      method: request.method,
       error: err.message,
       stack: err.stack,
     });
   } else {
     // 4xx errors are usually operational/client errors
-    console.warn(`⚠️ API Error [${errorCode}]: ${message} (${req.method} ${req.originalUrl})`);
+    console.warn(`⚠️ API Error [${errorCode}]: ${message} (${request.method} ${request.url})`);
   }
 
-  res.status(statusCode).json({
+  reply.code(statusCode).send({
     error: errorCode,
     message: message,
     // Add stack trace only in development

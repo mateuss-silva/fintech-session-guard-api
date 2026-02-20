@@ -56,7 +56,7 @@ const swaggerOptions = {
             variation_pct: { type: 'number' },
             instrumentId: { type: 'string', description: 'ID to connect to /api/market/instruments/:id/stream', example: 'instr_001' },
             change: { type: 'number' },
-            change_percent: { type: 'number' },
+            changePercent: { type: 'number' },
             timestamp: { type: 'string', format: 'date-time' },
           },
         },

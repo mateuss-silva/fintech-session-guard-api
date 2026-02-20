@@ -1,0 +1,76 @@
+🧪 Starting API smoke tests...
+
+── Health Check ──
+  ✅ Health returns 200
+  ✅ Health status healthy
+
+── Registration ──
+  ✅ Register returns 201
+  ✅ Duplicate register returns 409
+
+── Login ──
+  ✅ Login returns 200
+  ✅ Login has accessToken
+  ✅ Login has refreshToken
+  ✅ Login has user info
+  ✅ Bad password returns 401
+
+── Portfolio ──
+  ✅ Portfolio returns 200
+  ✅ Portfolio has assets
+  ✅ Portfolio has assets returned
+  ✅ Summary returns 200
+  ✅ Summary has totalInvested
+
+── Authorization ──
+  ✅ Portfolio without token returns 401
+
+── Token Rotation ──
+  ✅ Refresh returns 200
+  ✅ Refresh has new accessToken
+  ✅ Refresh has new refreshToken
+  ✅ Reuse detection returns 401
+  ✅ Reuse error is TOKEN_REUSE_DETECTED
+
+── Biometric Flow ──
+  ✅ Challenge returns 200
+  ✅ Challenge has token
+  ✅ Bio verify returns 200
+  ✅ Bio verified is true
+
+── Sensitive Operations ──
+  ❌ Redeem without bio returns 403 or 401
+     Data: {
+  status: 404,
+  body: {
+    error: 'NOT_FOUND',
+    message: 'Route POST /api/transactions/redeem not found'
+  }
+}
+  ❌ Redeem with bio returns 200
+     Data: {
+  status: 404,
+  body: {
+    error: 'NOT_FOUND',
+    message: 'Route POST /api/transactions/redeem not found'
+  }
+}
+  ❌ Redeem transaction completed
+     Data: {
+  status: 404,
+  body: {
+    error: 'NOT_FOUND',
+    message: 'Route POST /api/transactions/redeem not found'
+  }
+}
+  ✅ History returns 200
+  ✅ History has transactions
+
+── Logout ──
+  ✅ Logout returns 200
+  ✅ After logout session invalid
+
+══════════════════════════════════════
+  Results: 28 passed, 3 failed
+══════════════════════════════════════
+

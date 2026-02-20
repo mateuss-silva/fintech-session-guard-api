@@ -5,12 +5,12 @@ const { generateSecureToken } = require('../utils/crypto');
 /**
  * POST /api/device/register
  */
-function registerDevice(req, res) {
+function registerDevice(req, reply) {
   try {
     const { deviceFingerprint, platform, model } = req.body;
 
     if (!deviceFingerprint || !platform) {
-      return res.status(400).json({
+      return reply.code(400).send({
         error: 'VALIDATION_ERROR',
         message: 'Device fingerprint and platform are required',
       });
@@ -23,7 +23,7 @@ function registerDevice(req, res) {
     );
 
     if (existing) {
-      return res.json({
+      return reply.send({
         message: 'Device already registered',
         device: {
           id: existing.id,
@@ -41,7 +41,7 @@ function registerDevice(req, res) {
       [deviceId, req.user.id, deviceFingerprint, platform, model || '']
     );
 
-    res.status(201).json({
+    return reply.code(201).send({
       message: 'Device registered successfully',
       device: {
         id: deviceId,
@@ -53,19 +53,19 @@ function registerDevice(req, res) {
     });
   } catch (error) {
     console.error('Register device error:', error);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Device registration failed' });
+    throw error;
   }
 }
 
 /**
  * POST /api/device/verify
  */
-function verifyDeviceIntegrity(req, res) {
+function verifyDeviceIntegrity(req, reply) {
   try {
     const { deviceId, isRooted, isEmulator, hasDebugger } = req.body;
 
     if (!deviceId) {
-      return res.status(400).json({
+      return reply.code(400).send({
         error: 'VALIDATION_ERROR',
         message: 'Device ID is required',
       });
@@ -75,7 +75,7 @@ function verifyDeviceIntegrity(req, res) {
       [deviceId, req.user.id]);
 
     if (!device) {
-      return res.status(404).json({
+      return reply.code(404).send({
         error: 'DEVICE_NOT_FOUND',
         message: 'Device not found',
       });
@@ -114,24 +114,24 @@ function verifyDeviceIntegrity(req, res) {
       response.warning = 'Device integrity issues detected. Some features may be restricted.';
     }
 
-    res.json(response);
+    return reply.send(response);
   } catch (error) {
     console.error('Verify device error:', error);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Device verification failed' });
+    throw error;
   }
 }
 
 /**
  * GET /api/device/list
  */
-function listDevices(req, res) {
+function listDevices(req, reply) {
   try {
     const devices = queryAll(
       'SELECT id, platform, model, is_trusted, integrity_status, registered_at FROM devices WHERE user_id = ? ORDER BY registered_at DESC',
       [req.user.id]
     );
 
-    res.json({
+    return reply.send({
       devices: devices.map((d) => ({
         id: d.id,
         platform: d.platform,
@@ -143,20 +143,20 @@ function listDevices(req, res) {
     });
   } catch (error) {
     console.error('List devices error:', error);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to list devices' });
+    throw error;
   }
 }
 
 /**
  * POST /api/bio/challenge
  */
-function createBiometricChallenge(req, res) {
+function createBiometricChallenge(req, reply) {
   try {
     const { operationType } = req.body;
-    const validOps = ['redeem', 'transfer', 'settings', 'password_change'];
+    const validOps = ['transfer', 'settings', 'password_change'];
 
     if (!operationType || !validOps.includes(operationType)) {
-      return res.status(400).json({
+      return reply.code(400).send({
         error: 'VALIDATION_ERROR',
         message: `Operation type must be one of: ${validOps.join(', ')}`,
       });
@@ -171,7 +171,7 @@ function createBiometricChallenge(req, res) {
       [challengeId, req.user.id, challengeToken, operationType, expiresAt.toISOString()]
     );
 
-    res.json({
+    return reply.send({
       message: 'Biometric challenge created',
       challengeToken,
       operationType,
@@ -180,19 +180,19 @@ function createBiometricChallenge(req, res) {
     });
   } catch (error) {
     console.error('Create challenge error:', error);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to create biometric challenge' });
+    throw error;
   }
 }
 
 /**
  * POST /api/bio/verify
  */
-function verifyBiometric(req, res) {
+function verifyBiometric(req, reply) {
   try {
     const { challengeToken, biometricSuccess } = req.body;
 
     if (!challengeToken) {
-      return res.status(400).json({
+      return reply.code(400).send({
         error: 'VALIDATION_ERROR',
         message: 'Challenge token is required',
       });
@@ -204,7 +204,7 @@ function verifyBiometric(req, res) {
     );
 
     if (!challenge) {
-      return res.status(404).json({
+      return reply.code(404).send({
         error: 'CHALLENGE_NOT_FOUND',
         message: 'Biometric challenge not found',
       });
@@ -212,14 +212,14 @@ function verifyBiometric(req, res) {
 
     if (new Date(challenge.expires_at).getTime() < Date.now()) {
       runSql('DELETE FROM biometric_challenges WHERE id = ?', [challenge.id]);
-      return res.status(410).json({
+      return reply.code(410).send({
         error: 'CHALLENGE_EXPIRED',
         message: 'Biometric challenge has expired. Request a new one.',
       });
     }
 
     if (!biometricSuccess) {
-      return res.status(403).json({
+      return reply.code(403).send({
         error: 'BIOMETRIC_FAILED',
         message: 'Biometric verification failed on device',
       });
@@ -230,7 +230,7 @@ function verifyBiometric(req, res) {
       [challenge.id]
     );
 
-    res.json({
+    return reply.send({
       message: 'Biometric verified successfully',
       challengeToken,
       operationType: challenge.operation_type,
@@ -238,7 +238,7 @@ function verifyBiometric(req, res) {
     });
   } catch (error) {
     console.error('Verify biometric error:', error);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Biometric verification failed' });
+    throw error;
   }
 }
 

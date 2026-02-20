@@ -32,7 +32,7 @@ const marketService = require('../services/marketService');
  *                   items:
  *                     $ref: '#/components/schemas/Asset'
  */
-function getPortfolio(req, res) {
+function getPortfolio(req, reply) {
   try {
     const portfolioItems = queryAll(
       'SELECT id, asset_name, asset_type, ticker, quantity, avg_price, updated_at FROM portfolio WHERE user_id = ? ORDER BY asset_type, asset_name', 
@@ -80,8 +80,15 @@ function getPortfolio(req, res) {
     });
 
     const totalBalance = totalCurrent + availableBalance;
+    const byTypeMap = {};
+    assets.forEach(a => {
+      if (!byTypeMap[a.type]) byTypeMap[a.type] = { type: a.type, invested: 0, current: 0, assetCount: 0 };
+      byTypeMap[a.type].invested += (a.quantity * a.avgPrice);
+      byTypeMap[a.type].current += a.currentValue;
+      byTypeMap[a.type].assetCount += 1;
+    });
 
-    res.json({
+    return reply.send({
       summary: {
         totalBalance: Math.round(totalBalance * 100) / 100,
         totalInvested: Math.round(totalInvested * 100) / 100,
@@ -90,12 +97,13 @@ function getPortfolio(req, res) {
         availableBalance: Math.round(availableBalance * 100) / 100,
         totalAssets: totalAssets,
       },
+      byType: Object.values(byTypeMap),
       assets: assets
     });
 
   } catch (error) {
     console.error('Portfolio error:', error);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to fetch portfolio' });
+    throw error;
   }
 }
 

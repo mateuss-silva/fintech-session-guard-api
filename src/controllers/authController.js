@@ -42,7 +42,7 @@ const REFRESH_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || '7d';
  *       409:
  *         description: User already exists
  */
-async function register(req, res, next) {
+async function register(req, reply) {
   try {
     const { email, password, name } = req.body;
 
@@ -66,12 +66,12 @@ async function register(req, res, next) {
     runSql('INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)',
       [userId, email, passwordHash, name]);
 
-    res.status(201).json({
+    return reply.code(201).send({
       message: 'User registered successfully',
       userId,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 }
 
@@ -98,7 +98,7 @@ async function register(req, res, next) {
  *       401:
  *         description: Invalid credentials
  */
-async function login(req, res, next) {
+async function login(req, reply) {
   try {
     const { email, password, deviceId } = req.body;
 
@@ -137,7 +137,7 @@ async function login(req, res, next) {
       [sessionId, user.id, deviceId || null, jti, req.ip, req.headers['user-agent'] || '']
     );
 
-    res.json({
+    return reply.send({
       accessToken,
       refreshToken,
       user: {
@@ -147,7 +147,7 @@ async function login(req, res, next) {
       }
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 }
 
@@ -174,7 +174,7 @@ async function login(req, res, next) {
  *       401:
  *         description: Invalid refresh token or reuse detected
  */
-async function refresh(req, res, next) {
+async function refresh(req, reply) {
   try {
     const { refreshToken, deviceId } = req.body;
 
@@ -248,7 +248,7 @@ async function refresh(req, res, next) {
       [sessionId, decoded.sub, deviceId || null, jti, req.ip, req.headers['user-agent'] || '']
     );
 
-    res.json({
+    return reply.send({
       message: 'Tokens refreshed successfully',
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
@@ -256,7 +256,7 @@ async function refresh(req, res, next) {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '15m',
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 }
 
@@ -279,7 +279,7 @@ async function refresh(req, res, next) {
  *       200:
  *         description: Logged out successfully
  */
-function logout(req, res) {
+function logout(req, reply) {
   try {
     const { refreshToken } = req.body;
 
@@ -297,9 +297,9 @@ function logout(req, res) {
       );
     }
 
-    res.json({ message: 'Logged out successfully' });
+    return reply.send({ message: 'Logged out successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 }
 
@@ -315,16 +315,16 @@ function logout(req, res) {
  *       200:
  *         description: List of active sessions
  */
-function listSessions(req, res) {
+function listSessions(req, reply) {
   try {
     const sessions = queryAll(
       'SELECT id, device_id, ip_address, user_agent, last_activity, created_at FROM sessions WHERE user_id = ? AND is_active = 1 ORDER BY last_activity DESC',
       [req.user.id]
     );
 
-    res.json({ sessions });
+    return reply.send({ sessions });
   } catch (error) {
-    next(error);
+    throw error;
   }
 }
 
@@ -347,7 +347,7 @@ function listSessions(req, res) {
  *       404:
  *         description: Session not found
  */
-function revokeSession(req, res, next) {
+function revokeSession(req, reply) {
   const { NotFoundError } = require('../utils/errors');
   try {
     const { sessionId } = req.params;
@@ -360,9 +360,9 @@ function revokeSession(req, res, next) {
       throw new NotFoundError('Session not found');
     }
 
-    res.json({ message: 'Session revoked successfully' });
+    return reply.send({ message: 'Session revoked successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 }
 
@@ -390,7 +390,7 @@ function revokeSession(req, res, next) {
  *       401:
  *         description: Invalid PIN
  */
-async function verifyPin(req, res, next) {
+async function verifyPin(req, reply) {
   try {
     const { pin } = req.body;
 
@@ -418,12 +418,12 @@ async function verifyPin(req, res, next) {
       [uuidv4(), req.user.id, challengeToken, 'PIN_VERIFICATION', expiresAt.toISOString(), 1, new Date().toISOString()]
     );
 
-    res.json({
+    return reply.send({
       message: 'PIN verified',
       challengeToken,
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 }
 

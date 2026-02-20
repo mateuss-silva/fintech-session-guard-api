@@ -99,7 +99,7 @@ function updatePortfolioAsset(userId, ticker, quantityChange, priceAtExecution, 
  *       400:
  *         description: Insufficient funds or validation error
  */
-async function buy(req, res, next) {
+async function buy(req, reply) {
   try {
     const { ticker, quantity, pin, biometricToken } = req.body;
     
@@ -152,7 +152,7 @@ async function buy(req, res, next) {
       [transactionId, req.user.id, assetMeta.asset_name, ticker, totalCost, quantity, currentPrice]
     );
 
-    res.json({
+    return reply.send({
       message: 'Buy successful',
       transaction: {
         id: transactionId,
@@ -165,7 +165,7 @@ async function buy(req, res, next) {
     });
 
   } catch (error) {
-    next(error);
+    throw error;
   }
 }
 
@@ -192,7 +192,7 @@ async function buy(req, res, next) {
  *       400:
  *         description: Insufficient assets or validation error
  */
-async function sell(req, res, next) {
+async function sell(req, reply) {
   try {
     const { ticker, quantity, pin, biometricToken } = req.body;
 
@@ -248,7 +248,7 @@ async function sell(req, res, next) {
       [transactionId, req.user.id, asset.asset_name, ticker, totalValue, quantity, currentPrice]
     );
 
-    res.json({
+    return reply.send({
       message: 'Sell successful',
       transaction: {
         id: transactionId,
@@ -261,7 +261,7 @@ async function sell(req, res, next) {
     });
 
   } catch (error) {
-    next(error);
+    throw error;
   }
 }
 
@@ -285,10 +285,10 @@ async function sell(req, res, next) {
  *       200:
  *         description: List of instruments matching criteria
  */
-function searchInstruments(req, res) {
+function searchInstruments(req, reply) {
   const { q, type } = req.query;
   const results = marketService.searchInstruments(q, type);
-  res.json(results);
+  return reply.send({ instruments: results });
 }
 
 

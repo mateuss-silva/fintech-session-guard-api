@@ -1,0 +1,96 @@
+
+> fintech-session-guard-api@1.0.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit tests/portfolio.test.js
+
+  console.log
+    ✅ Database initialized successfully
+
+      at log (src/config/database.js:203:11)
+
+  console.log
+    📈 Market simulation started
+
+      at MarketService.log [as startSimulation] (src/services/marketService.js:144:13)
+
+FAIL tests/portfolio.test.js (20.579 s)
+  Portfolio API
+    GET /api/portfolio/summary
+      × should return complete summary including 100k cash (5010 ms)
+      × should include categorized stats (byType) (5006 ms)
+      × should include enriched assets list with instrumentId (5003 ms)
+    GET /api/portfolio
+      × should return list of assets enriched with real-time data (5011 ms)
+
+  ● Portfolio API › GET /api/portfolio/summary › should return complete summary including 100k cash
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 39 |[39m
+     [90m 40 |[39m   describe([32m'GET /api/portfolio/summary'[39m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 41 |[39m     it([32m'should return complete summary including 100k cash'[39m[33m,[39m [36masync[39m () [33m=>[39m {
+     [90m    |[39m     [31m[1m^[22m[39m
+     [90m 42 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m app[33m.[39minject({ method[33m:[39m [32m'GET'[39m[33m,[39m url[33m:[39m [32m'/api/portfolio/summary'[39m })[33m;[39m
+     [90m 43 |[39m       expect(res[33m.[39mstatusCode)[33m.[39mtoBe([35m200[39m)[33m;[39m
+     [90m 44 |[39m       [0m
+
+      at it (tests/portfolio.test.js:41:5)
+      at describe (tests/portfolio.test.js:40:3)
+      at Object.describe (tests/portfolio.test.js:12:1)
+
+  ● Portfolio API › GET /api/portfolio/summary › should include categorized stats (byType)
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 58 |[39m     })[33m;[39m
+     [90m 59 |[39m
+    [31m[1m>[22m[39m[90m 60 |[39m     it([32m'should include categorized stats (byType)'[39m[33m,[39m [36masync[39m () [33m=>[39m {
+     [90m    |[39m     [31m[1m^[22m[39m
+     [90m 61 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m app[33m.[39minject({ method[33m:[39m [32m'GET'[39m[33m,[39m url[33m:[39m [32m'/api/portfolio/summary'[39m })[33m;[39m
+     [90m 62 |[39m       expect(res[33m.[39mstatusCode)[33m.[39mtoBe([35m200[39m)[33m;[39m
+     [90m 63 |[39m       [0m
+
+      at it (tests/portfolio.test.js:60:5)
+      at describe (tests/portfolio.test.js:40:3)
+      at Object.describe (tests/portfolio.test.js:12:1)
+
+  ● Portfolio API › GET /api/portfolio/summary › should include enriched assets list with instrumentId
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 70 |[39m     })[33m;[39m
+     [90m 71 |[39m
+    [31m[1m>[22m[39m[90m 72 |[39m     it([32m'should include enriched assets list with instrumentId'[39m[33m,[39m [36masync[39m () [33m=>[39m {
+     [90m    |[39m     [31m[1m^[22m[39m
+     [90m 73 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m app[33m.[39minject({ method[33m:[39m [32m'GET'[39m[33m,[39m url[33m:[39m [32m'/api/portfolio/summary'[39m })[33m;[39m
+     [90m 74 |[39m       expect(res[33m.[39mstatusCode)[33m.[39mtoBe([35m200[39m)[33m;[39m
+     [90m 75 |[39m       [0m
+
+      at it (tests/portfolio.test.js:72:5)
+      at describe (tests/portfolio.test.js:40:3)
+      at Object.describe (tests/portfolio.test.js:12:1)
+
+  ● Portfolio API › GET /api/portfolio › should return list of assets enriched with real-time data
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+    [0m [90m 85 |[39m
+     [90m 86 |[39m   describe([32m'GET /api/portfolio'[39m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 87 |[39m     it([32m'should return list of assets enriched with real-time data'[39m[33m,[39m [36masync[39m () [33m=>[39m {
+     [90m    |[39m     [31m[1m^[22m[39m
+     [90m 88 |[39m       [36mconst[39m res [33m=[39m [36mawait[39m app[33m.[39minject({ method[33m:[39m [32m'GET'[39m[33m,[39m url[33m:[39m [32m'/api/portfolio'[39m })[33m;[39m
+     [90m 89 |[39m       expect(res[33m.[39mstatusCode)[33m.[39mtoBe([35m200[39m)[33m;[39m
+     [90m 90 |[39m       [0m
+
+      at it (tests/portfolio.test.js:87:5)
+      at describe (tests/portfolio.test.js:86:3)
+      at Object.describe (tests/portfolio.test.js:12:1)
+
+Test Suites: 1 failed, 1 total
+Tests:       4 failed, 4 total
+Snapshots:   0 total
+Time:        20.624 s, estimated 21 s
+Ran all test suites matching /tests\\portfolio.test.js/i.

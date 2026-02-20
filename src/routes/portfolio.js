@@ -1,13 +1,11 @@
-const express = require('express');
-const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { checkSessionTimeout } = require('../middleware/sessionTimeout');
 const portfolioController = require('../controllers/portfolioController');
 
-// All portfolio routes require authentication + session check
-router.use(authenticate, checkSessionTimeout);
+module.exports = async function (fastify, opts) {
+  fastify.addHook('preHandler', authenticate);
+  fastify.addHook('preHandler', checkSessionTimeout);
 
-
-router.get('/', portfolioController.getPortfolio);
-
-module.exports = router;
+  fastify.get('/', portfolioController.getPortfolio);
+  fastify.get('/summary', portfolioController.getPortfolio);
+};

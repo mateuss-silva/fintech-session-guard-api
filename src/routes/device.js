@@ -1,19 +1,17 @@
-const express = require('express');
-const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { checkSessionTimeout } = require('../middleware/sessionTimeout');
 const deviceController = require('../controllers/deviceController');
 
-// All device routes require authentication + session check
-router.use(authenticate, checkSessionTimeout);
+module.exports = async function (fastify, opts) {
+  fastify.addHook('preHandler', authenticate);
+  fastify.addHook('preHandler', checkSessionTimeout);
 
-// Device management
-router.post('/register', deviceController.registerDevice);
-router.post('/verify', deviceController.verifyDeviceIntegrity);
-router.get('/list', deviceController.listDevices);
+  // Device management
+  fastify.post('/register', deviceController.registerDevice);
+  fastify.post('/verify', deviceController.verifyDeviceIntegrity);
+  fastify.get('/list', deviceController.listDevices);
 
-// Biometric challenge/verify
-router.post('/bio/challenge', deviceController.createBiometricChallenge);
-router.post('/bio/verify', deviceController.verifyBiometric);
-
-module.exports = router;
+  // Biometric challenge/verify
+  fastify.post('/bio/challenge', deviceController.createBiometricChallenge);
+  fastify.post('/bio/verify', deviceController.verifyBiometric);
+};

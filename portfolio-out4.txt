@@ -1,0 +1,58 @@
+
+> fintech-session-guard-api@1.0.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit tests/portfolio.test.js
+
+  console.log
+    ✅ Database initialized successfully
+
+      at log (src/config/database.js:203:11)
+
+  console.log
+    📈 Market simulation started
+
+      at MarketService.log [as startSimulation] (src/services/marketService.js:144:13)
+
+FAIL tests/portfolio.test.js
+  Portfolio API
+    GET /api/portfolio/summary
+      √ should return complete summary including 100k cash (28 ms)
+      × should include categorized stats (byType) (2 ms)
+      √ should include enriched assets list with instrumentId (3 ms)
+    GET /api/portfolio
+      × should return list of assets enriched with real-time data (3 ms)
+
+  ● Portfolio API › GET /api/portfolio/summary › should include categorized stats (byType)
+
+    TypeError: Cannot read properties of undefined (reading 'find')
+
+    [0m [90m 63 |[39m       
+     [90m 64 |[39m       [36mconst[39m payload [33m=[39m [33mJSON[39m[33m.[39mparse(res[33m.[39mpayload)[33m;[39m
+    [31m[1m>[22m[39m[90m 65 |[39m       [36mconst[39m acaoCat [33m=[39m payload[33m.[39mbyType[33m.[39mfind(t [33m=>[39m t[33m.[39mtype [33m===[39m [32m'acao'[39m)[33m;[39m
+     [90m    |[39m                                      [31m[1m^[22m[39m
+     [90m 66 |[39m       expect(acaoCat)[33m.[39mtoBeDefined()[33m;[39m
+     [90m 67 |[39m       expect(acaoCat[33m.[39minvested)[33m.[39mtoBe([35m300[39m)[33m;[39m
+     [90m 68 |[39m       expect(acaoCat[33m.[39mcurrent)[33m.[39mtoBe([35m387[39m)[33m;[39m[0m
+
+      at Object.find (tests/portfolio.test.js:65:38)
+
+  ● Portfolio API › GET /api/portfolio › should return list of assets enriched with real-time data
+
+    expect(received).toBeDefined()
+
+    Received: undefined
+
+    [0m [90m  96 |[39m       expect(petr[33m.[39minstrumentId)[33m.[39mtoBe([32m'instr_001'[39m)[33m;[39m
+     [90m  97 |[39m       expect(petr[33m.[39mchange)[33m.[39mtoBeDefined()[33m;[39m
+    [31m[1m>[22m[39m[90m  98 |[39m       expect(petr[33m.[39mchange_percent)[33m.[39mtoBeDefined()[33m;[39m
+     [90m     |[39m                                   [31m[1m^[22m[39m
+     [90m  99 |[39m     })[33m;[39m
+     [90m 100 |[39m   })[33m;[39m
+     [90m 101 |[39m })[33m;[39m[0m
+
+      at Object.toBeDefined (tests/portfolio.test.js:98:35)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 2 passed, 4 total
+Snapshots:   0 total
+Time:        0.613 s, estimated 1 s
+Ran all test suites matching /tests\\portfolio.test.js/i.

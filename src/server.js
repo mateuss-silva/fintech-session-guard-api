@@ -1,37 +1,43 @@
 require('dotenv').config();
 
-const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
-const swaggerUi = require('swagger-ui-express');
-const swaggerDocs = require('./config/swagger');
+const path = require('path');
+const fs = require('fs');
+
+// Create Fastify with HTTP/2 enabled
+let httpsOptions = null;
+try {
+  httpsOptions = {
+    allowHTTP1: true,
+    key: fs.readFileSync(path.join(__dirname, '../localhost.key')),
+    cert: fs.readFileSync(path.join(__dirname, '../localhost.crt'))
+  };
+} catch (error) {
+  console.warn('⚠️ HTTP/2 certificates not found! Run "node scripts/generate-certs.js" first.');
+  process.exit(1);
+}
+
+const fastify = require('fastify')({
+  logger: false, // Use our custom logger plugin
+  http2: true,
+  https: httpsOptions
+});
+
 const database = require('./config/database');
 const { initializeDatabase, seedDemoData, queryAll } = require('./config/database');
-const { globalLimiter } = require('./middleware/rateLimiter');
-const logger = require('./middleware/logger');
+const { globalLimiterOptions } = require('./middleware/rateLimiter');
 const marketService = require('./services/marketService');
 
-// Routes
-const authRoutes = require('./routes/auth');
-const portfolioRoutes = require('./routes/portfolio');
-const transactionRoutes = require('./routes/transactions');
-const deviceRoutes = require('./routes/device');
-
-const metaRoutes = require('./routes/metaRoutes');
-const tradeController = require('./controllers/tradeController');
-
-const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ─── Security Middleware ─────────────────────────────────────────────
-app.use(helmet());
-app.use(cors({
+fastify.register(require('@fastify/helmet'));
+fastify.register(require('@fastify/cors'), {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
     // Allow any localhost origin for development
-    if (origin.match(/^http:\/\/localhost:\d+$/) || origin.match(/^http:\/\/127\.0\.0\.1:\d+$/)) {
+    if (origin.match(/^https?:\/\/localhost:\d+$/) || origin.match(/^https?:\/\/127\.0\.0\.1:\d+$/)) {
       return callback(null, true);
     }
 
@@ -40,159 +46,102 @@ app.use(cors({
       return callback(null, true);
     }
 
-    callback(new Error('Not allowed by CORS'));
+    callback(new Error('Not allowed by CORS'), false);
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Biometric-Token', 'X-Device-Id'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Biometric-Token', 'X-Device-Id', 'Accept', 'Cache-Control', 'Connection'],
   credentials: true,
-}));
-app.use(globalLimiter);
-
-// ─── Body Parsing ────────────────────────────────────────────────────
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
-
-// ─── Request Logging ─────────────────────────────────────────────────
-app.use(logger);
-
-// ─── Health Check ────────────────────────────────────────────────────
-/**
- * @swagger
- * /api/health:
- *   get:
- *     summary: Checks if the API is running and healthy.
- *     tags: [Monitoring]
- *     responses:
- *       200:
- *         description: API is healthy.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: ok
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                   example: "2023-10-27T10:00:00.000Z"
- */
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+// Rate limiting plugin
+fastify.register(require('@fastify/rate-limit'), {
+  global: true,
+  ...globalLimiterOptions
+});
 
-// ─── API Routes ──────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/portfolio', portfolioRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/device', deviceRoutes);
+// ─── Custom Logger Hook ──────────────────────────────────────────────
+const setupLogger = require('./middleware/logger');
+setupLogger(fastify);
 
-app.use('/api/meta', metaRoutes);
-
-// Trading & Market Routes
-const { authenticate } = require('./middleware/auth');
-
-app.post('/api/trade/buy', authenticate, tradeController.buy);
-app.post('/api/trade/sell', authenticate, tradeController.sell);
-app.get('/api/market/instruments', tradeController.searchInstruments);
-
-
-
-app.get('/api/market/instruments/:ticker/stream', (req, res) => {
-  const { ticker } = req.params;
-  
-  // Set headers for SSE
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // Disable Nginx buffering if any
-
-  console.log(`📡 New stream client for ${ticker}`);
-
-  const added = marketService.addInstrumentClient(ticker, res);
-  
-  if (!added) {
-    // If ticker not found/monitored, close connection
-    res.status(404).end();
+// ─── Swagger Documentation ───────────────────────────────────────────
+fastify.register(require('@fastify/swagger'), {
+  mode: 'static',
+  specification: {
+    document: require('./config/swagger')
   }
 });
 
-
-// ─── API Documentation ──────────────────────────────────────────────
-app.get('/api', (req, res) => {
-  res.json({
-    name: 'Fintech Session Guard API',
-    version: '1.0.0',
-    description: 'Backend for Flutter Fintech Investment app with session hijacking protection',
-    documentation: '/api-docs',
-    security: [
-      'JWT token rotation with reuse detection',
-      'Session timeout by inactivity',
-      'Device integrity validation (root/jailbreak)',
-      'Biometric verification for sensitive operations',
-      'Rate limiting (global + auth-specific)',
-      'Helmet security headers',
-      'Device-bound sessions',
-    ],
-    endpoints: {
-      health: 'GET /api/health',
-      auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login',
-        refresh: 'POST /api/auth/refresh',
-        logout: 'POST /api/auth/logout',
-        sessions: 'GET /api/auth/sessions',
-        revokeSession: 'DELETE /api/auth/sessions/:sessionId',
-      },
-      portfolio: {
-        list: 'GET /api/portfolio',
-      },
-      transactions: {
-        history: 'GET /api/transactions/history',
-      },
-      trade: {
-        buy: 'POST /api/trade/buy',
-        sell: 'POST /api/trade/sell',
-      },
-      market: {
-        instruments: 'GET /api/market/instruments?q=&type=',
-      },
-      device: {
-        register: 'POST /api/device/register',
-        verify: 'POST /api/device/verify',
-        list: 'GET /api/device/list',
-        bioChallenge: 'POST /api/device/bio/challenge',
-        bioVerify: 'POST /api/device/bio/verify',
-      },
-    },
-    demo: {
-      email: 'demo@fintech.com',
-      password: 'Demo@2024!',
-    },
-  });
+fastify.register(require('@fastify/swagger-ui'), {
+  routePrefix: '/api-docs',
+  uiConfig: {
+    docExpansion: 'list',
+    deepLinking: false
+  }
 });
 
-const errorHandler = require('./middleware/errorHandler');
+// ─── Health Check ────────────────────────────────────────────────────
+fastify.get('/api/health', async (request, reply) => {
+  return reply.send({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
-// ─── 404 Handler ─────────────────────────────────────────────────────
-app.use((req, res, next) => {
-  const { NotFoundError } = require('./utils/errors');
-  next(new NotFoundError(`Route ${req.method} ${req.path} not found`));
+// ─── API Routes ──────────────────────────────────────────────────────
+fastify.register(require('./routes/auth'), { prefix: '/api/auth' });
+fastify.register(require('./routes/portfolio'), { prefix: '/api/portfolio' });
+fastify.register(require('./routes/transactions'), { prefix: '/api/transactions' });
+fastify.register(require('./routes/device'), { prefix: '/api/device' });
+fastify.register(require('./routes/metaRoutes'), { prefix: '/api/meta' });
+
+// Trading & Market Routes (Fastify format)
+const tradeController = require('./controllers/tradeController');
+const { authenticate } = require('./middleware/auth');
+
+fastify.post('/api/trade/buy', { preHandler: [authenticate] }, tradeController.buy);
+fastify.post('/api/trade/sell', { preHandler: [authenticate] }, tradeController.sell);
+fastify.get('/api/market/instruments', tradeController.searchInstruments);
+
+fastify.get('/api/market/instruments/:id', (request, reply) => {
+  const { id } = request.params;
+  const instrument = marketService.catalog.find(c => c.id === id);
+  if (!instrument) {
+    return reply.code(404).send({ error: 'NOT_FOUND' });
+  }
+  return reply.send(instrument);
+});
+
+fastify.get('/api/market/instruments/:ticker/stream', (request, reply) => {
+  const { ticker } = request.params;
+  
+  // Set headers for SSE in HTTP/2 (Fastify)
+  reply.raw.setHeader('Content-Type', 'text/event-stream');
+  reply.raw.setHeader('Cache-Control', 'no-cache');
+  // reply.raw.setHeader('Connection', 'keep-alive'); // Not strictly needed for HTTP/2, but ok
+  reply.raw.setHeader('X-Accel-Buffering', 'no'); 
+
+  console.log(`📡 New stream client for ${ticker}`);
+
+  const added = marketService.addInstrumentClient(ticker, reply.raw);
+  
+  if (!added) {
+    reply.code(404).send();
+  } else {
+    // Keep connection alive
+    reply.hijack();
+  }
 });
 
 // ─── Global Error Handler ────────────────────────────────────────────
-app.use(errorHandler);
+const errorHandler = require('./middleware/errorHandler');
+fastify.setErrorHandler(errorHandler);
+
+fastify.setNotFoundHandler((request, reply) => {
+  reply.code(404).send({ error: 'NOT_FOUND', message: `Route ${request.method} ${request.url} not found` });
+});
 
 // ─── Start Server ────────────────────────────────────────────────────
 async function startServer() {
   try {
     // Initialize database
     await initializeDatabase();
-
-    // Seed demo data
     await seedDemoData();
 
     // Initialize Market Service
@@ -204,29 +153,25 @@ async function startServer() {
       console.warn('⚠️ No assets found to initialize Market Service');
     }
 
-    app.listen(PORT, () => {
-      console.log('');
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('  🔐 Fintech Session Guard API');
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log(`  🚀 Server running on http://localhost:${PORT}`);
-      console.log(`  📋 API docs:          http://localhost:${PORT}/api-docs`);
-      console.log(`  ❤️  Health check:      http://localhost:${PORT}/api/health`);
-      console.log('');
-      console.log('  Security Features:');
-      console.log('  ├─ ♻️  Token rotation with reuse detection');
-      console.log('  ├─ ⏰ Session timeout (inactivity)');
-      console.log('  ├─ 📱 Device integrity check');
-      console.log('  ├─ 🔒 Biometric verification');
-      console.log('  ├─ 🛡️  Rate limiting');
-      console.log('  └─ 🔗 Device-bound sessions');
-      console.log('');
-      console.log('  Demo credentials:');
-      console.log('  ├─ Email:    demo@fintech.com');
-      console.log('  └─ Password: Demo@2024!');
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('');
-    });
+    await fastify.listen({ port: PORT, host: '0.0.0.0' });
+    
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('  🔐 Fintech Session Guard API (HTTP/2 Fastify)');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log(`  🚀 Server running on https://localhost:${PORT}`);
+    console.log(`  ❤️  Health check:      https://localhost:${PORT}/api/health`);
+    console.log('');
+    console.log('  Security Features:');
+    console.log('  ├─ ♻️  Token rotation with reuse detection');
+    console.log('  ├─ ⏰ Session timeout (inactivity)');
+    console.log('  ├─ 📱 Device integrity check');
+    console.log('  ├─ 🔒 Biometric verification');
+    console.log('  ├─ 🛡️  Rate limiting');
+    console.log('  └─ 🔗 Device-bound sessions');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('');
+
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
@@ -237,4 +182,4 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = app;
+module.exports = fastify;

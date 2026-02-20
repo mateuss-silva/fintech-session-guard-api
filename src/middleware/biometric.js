@@ -5,11 +5,11 @@ const { queryOne, runSql } = require('../config/database');
  * Requires a valid, non-expired biometric challenge token for sensitive operations
  */
 function requireBiometric(operationType) {
-  return (req, res, next) => {
+  return async (req, reply) => {
     const biometricToken = req.headers['x-biometric-token'];
 
     if (!biometricToken) {
-      return res.status(403).json({
+      return reply.code(403).send({
         error: 'BIOMETRIC_REQUIRED',
         message: `Biometric verification is required for ${operationType} operations`,
         operationType,
@@ -22,7 +22,7 @@ function requireBiometric(operationType) {
     );
 
     if (!challenge) {
-      return res.status(403).json({
+      return reply.code(403).send({
         error: 'BIOMETRIC_INVALID',
         message: 'Biometric challenge is invalid, not verified, or does not match operation type',
       });
@@ -31,7 +31,7 @@ function requireBiometric(operationType) {
     // Check if challenge has expired
     const expiresAt = new Date(challenge.expires_at).getTime();
     if (Date.now() > expiresAt) {
-      return res.status(403).json({
+      return reply.code(403).send({
         error: 'BIOMETRIC_EXPIRED',
         message: 'Biometric challenge has expired. Please request a new one.',
       });
@@ -41,7 +41,6 @@ function requireBiometric(operationType) {
     runSql('DELETE FROM biometric_challenges WHERE id = ?', [challenge.id]);
 
     req.biometricVerified = true;
-    next();
   };
 }
 

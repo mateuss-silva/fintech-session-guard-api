@@ -1,0 +1,93 @@
+🧪 Starting API smoke tests...
+
+── Health Check ──
+  ❌ Health returns 200
+     Data: {
+  status: 403,
+  body: 'Missing ALPN Protocol, expected `h2` to be available.\n' +
+    'If this is a HTTP request: The server was not configured with the `allowHTTP1` option or a listener for the `unknownProtocol` event.\n'
+}
+  ❌ Health status healthy
+     Data: {
+  status: 403,
+  body: 'Missing ALPN Protocol, expected `h2` to be available.\n' +
+    'If this is a HTTP request: The server was not configured with the `allowHTTP1` option or a listener for the `unknownProtocol` event.\n'
+}
+
+── Registration ──
+  ❌ Register returns 201
+     Data: {
+  status: 403,
+  body: 'Missing ALPN Protocol, expected `h2` to be available.\n' +
+    'If this is a HTTP request: The server was not configured with the `allowHTTP1` option or a listener for the `unknownProtocol` event.\n'
+}
+  ❌ Duplicate register returns 409
+     Data: {
+  status: 403,
+  body: 'Missing ALPN Protocol, expected `h2` to be available.\n' +
+    'If this is a HTTP request: The server was not configured with the `allowHTTP1` option or a listener for the `unknownProtocol` event.\n'
+}
+
+── Login ──
+  ❌ Login returns 200
+     Data: {
+  status: 403,
+  body: 'Missing ALPN Protocol, expected `h2` to be available.\n' +
+    'If this is a HTTP request: The server was not configured with the `allowHTTP1` option or a listener for the `unknownProtocol` event.\n'
+}
+  ❌ Login has accessToken
+     Data: {
+  status: 403,
+  body: 'Missing ALPN Protocol, expected `h2` to be available.\n' +
+    'If this is a HTTP request: The server was not configured with the `allowHTTP1` option or a listener for the `unknownProtocol` event.\n'
+}
+  ❌ Login has refreshToken
+     Data: {
+  status: 403,
+  body: 'Missing ALPN Protocol, expected `h2` to be available.\n' +
+    'If this is a HTTP request: The server was not configured with the `allowHTTP1` option or a listener for the `unknownProtocol` event.\n'
+}
+  ❌ Login has user info
+     Data: {
+  status: 403,
+  body: 'Missing ALPN Protocol, expected `h2` to be available.\n' +
+    'If this is a HTTP request: The server was not configured with the `allowHTTP1` option or a listener for the `unknownProtocol` event.\n'
+}
+  ❌ Bad password returns 401
+
+── Portfolio ──
+  ❌ Portfolio returns 200
+  ❌ Portfolio has assets
+  ❌ Portfolio has 10 assets
+  ❌ Summary returns 200
+  ❌ Summary has totalInvested
+
+── Authorization ──
+  ❌ Portfolio without token returns 401
+
+── Token Rotation ──
+  ❌ Refresh returns 200
+  ❌ Refresh has new accessToken
+  ❌ Refresh has new refreshToken
+  ❌ Reuse detection returns 401
+  ❌ Reuse error is TOKEN_REUSE_DETECTED
+
+── Biometric Flow ──
+  ❌ Challenge returns 200
+  ❌ Challenge has token
+  ❌ Bio verify returns 200
+  ❌ Bio verified is true
+
+── Sensitive Operations ──
+  ✅ Redeem without bio returns 403
+Test failed: TypeError [ERR_HTTP_INVALID_HEADER_VALUE]: Invalid value "undefined" for header "X-Biometric-Token"
+    at ClientRequest.setHeader (node:_http_outgoing:645:3)
+    at new ClientRequest (node:_http_client:355:14)
+    at Object.request (node:https:633:10)
+    at C:\Users\mateu\OneDrive\Documentos\projetos\fintech-session-guard-api\tests\smoke-test.js:22:23
+    at new Promise (<anonymous>)
+    at request (C:\Users\mateu\OneDrive\Documentos\projetos\fintech-session-guard-api\tests\smoke-test.js:9:10)
+    at test (C:\Users\mateu\OneDrive\Documentos\projetos\fintech-session-guard-api\tests\smoke-test.js:152:26)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  code: 'ERR_HTTP_INVALID_HEADER_VALUE'
+}

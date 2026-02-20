@@ -6,24 +6,26 @@ const { queryOne } = require('../config/database');
  * Verifies JWT access token and validates active session
  * Binds token to device — prevents token use from different device
  */
-function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
+function authenticate(request, reply, done) {
+  const authHeader = request.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
+    reply.code(401).send({
       error: 'MISSING_TOKEN',
       message: 'Access token is required',
     });
+    return;
   }
 
   const token = authHeader.split(' ')[1];
   const decoded = verifyAccessToken(token);
 
   if (!decoded) {
-    return res.status(401).json({
+    reply.code(401).send({
       error: 'INVALID_TOKEN',
       message: 'Access token is invalid or expired',
     });
+    return;
   }
 
   // Validate that the session is still active in the database
@@ -33,31 +35,33 @@ function authenticate(req, res, next) {
   );
 
   if (!session) {
-    return res.status(401).json({
+    reply.code(401).send({
       error: 'SESSION_INVALID',
       message: 'Session has been invalidated. Please login again.',
     });
+    return;
   }
 
   // Validate device binding
   if (decoded.deviceId && session.device_id && decoded.deviceId !== session.device_id) {
     const { runSql } = require('../config/database');
     runSql('UPDATE sessions SET is_active = 0 WHERE id = ?', [session.id]);
-    return res.status(401).json({
+    reply.code(401).send({
       error: 'DEVICE_MISMATCH',
       message: 'Token used from unauthorized device. Session invalidated.',
     });
+    return;
   }
 
   // Attach user info to request
-  req.user = {
+  request.user = {
     id: decoded.sub,
     jti: decoded.jti,
     deviceId: decoded.deviceId,
     sessionId: session.id,
   };
 
-  next();
+  done();
 }
 
 module.exports = { authenticate };

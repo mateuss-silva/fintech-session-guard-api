@@ -1,0 +1,38 @@
+
+> fintech-session-guard-api@1.0.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit tests/market.test.js
+
+  console.log
+    ✅ Database initialized successfully
+
+      at log (src/config/database.js:203:11)
+
+  console.log
+    📡 New stream client for instr_001
+
+      at Object.log (src/server.js:103:11)
+
+  console.log
+    📡 New stream client for instr_999
+
+      at Object.log (src/server.js:103:11)
+
+PASS tests/market.test.js
+  Market API
+    GET /api/market/instruments
+      √ should return popular instruments when no query is provided (28 ms)
+      √ should filter instruments by name/query (2 ms)
+      √ should filter instruments by type (1 ms)
+      √ should return empty list for non-existent query (1 ms)
+    GET /api/market/instruments/:id
+      √ should return instrument details for valid ID (2 ms)
+      √ should return 404 for invalid instrument ID (2 ms)
+    GET /api/market/instruments/:id/stream
+      √ should establish SSE connection for valid instrument ID (4 ms)
+      √ should return 404 for streaming non-existent instrument (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       8 passed, 8 total
+Snapshots:   0 total
+Time:        0.593 s, estimated 1 s
+Ran all test suites matching /tests\\market.test.js/i.

@@ -1,18 +1,17 @@
-const request = require('supertest');
 const app = require('../src/server');
 const { initializeDatabase, runSql } = require('../src/config/database');
 const marketService = require('../src/services/marketService');
 
 // Mock Auth Middleware
 jest.mock('../src/middleware/auth', () => ({
-  authenticate: (req, res, next) => {
-    req.user = { id: 'test-user-id' };
-    next();
+  authenticate: async (request, reply) => {
+    request.user = { id: 'test-user-id' };
   }
 }));
 
 describe('Portfolio API', () => {
   beforeAll(async () => {
+    await app.ready();
     await initializeDatabase();
     
     // Seed test data
@@ -34,12 +33,17 @@ describe('Portfolio API', () => {
       ['petr-id', 'test-user-id', 'Petrobras PN', 'acao', 'PETR4', 10.0, 30.0, petrPrice]);
   });
 
+  afterAll(async () => {
+    await app.close();
+  });
+
   describe('GET /api/portfolio/summary', () => {
     it('should return complete summary including 100k cash', async () => {
-      const res = await request(app).get('/api/portfolio/summary');
+      const res = await app.inject({ method: 'GET', url: '/api/portfolio/summary' });
       expect(res.statusCode).toBe(200);
       
-      const { summary } = res.body;
+      const payload = JSON.parse(res.payload);
+      const { summary } = payload;
       // Current value = (10 * 38.70) = 387
       // Invested value = (10 * 30) = 300
       // Available = 100,000
@@ -54,10 +58,11 @@ describe('Portfolio API', () => {
     });
 
     it('should include categorized stats (byType)', async () => {
-      const res = await request(app).get('/api/portfolio/summary');
+      const res = await app.inject({ method: 'GET', url: '/api/portfolio/summary' });
       expect(res.statusCode).toBe(200);
       
-      const acaoCat = res.body.byType.find(t => t.type === 'acao');
+      const payload = JSON.parse(res.payload);
+      const acaoCat = payload.byType.find(t => t.type === 'acao');
       expect(acaoCat).toBeDefined();
       expect(acaoCat.invested).toBe(300);
       expect(acaoCat.current).toBe(387);
@@ -65,10 +70,11 @@ describe('Portfolio API', () => {
     });
 
     it('should include enriched assets list with instrumentId', async () => {
-      const res = await request(app).get('/api/portfolio/summary');
+      const res = await app.inject({ method: 'GET', url: '/api/portfolio/summary' });
       expect(res.statusCode).toBe(200);
       
-      const { assets } = res.body;
+      const payload = JSON.parse(res.payload);
+      const { assets } = payload;
       expect(assets).toBeDefined();
       expect(assets.length).toBe(1);
       expect(assets[0].ticker).toBe('PETR4');
@@ -79,16 +85,17 @@ describe('Portfolio API', () => {
 
   describe('GET /api/portfolio', () => {
     it('should return list of assets enriched with real-time data', async () => {
-      const res = await request(app).get('/api/portfolio');
+      const res = await app.inject({ method: 'GET', url: '/api/portfolio' });
       expect(res.statusCode).toBe(200);
       
-      expect(res.body.assets).toBeDefined();
-      expect(res.body.assets.length).toBe(1);
-      const petr = res.body.assets[0];
+      const payload = JSON.parse(res.payload);
+      expect(payload.assets).toBeDefined();
+      expect(payload.assets.length).toBe(1);
+      const petr = payload.assets[0];
       expect(petr.ticker).toBe('PETR4');
       expect(petr.instrumentId).toBe('instr_001');
       expect(petr.change).toBeDefined();
-      expect(petr.change_percent).toBeDefined();
+      expect(petr.changePercent).toBeDefined();
     });
   });
 });

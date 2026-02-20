@@ -13,7 +13,7 @@ const { queryOne, queryAll, runSql } = require('../config/database');
  *       - in: query
  *         name: type
  *         schema: { type: string }
- *         description: Filter by type (buy, sell, redeem, transfer, deposit)
+ *         description: Filter by type (buy, sell, transfer, deposit)
  *       - in: query
  *         name: limit
  *         schema: { type: integer, default: 50 }
@@ -24,7 +24,7 @@ const { queryOne, queryAll, runSql } = require('../config/database');
  *       200:
  *         description: List of transactions with pagination
  */
-function getHistory(req, res) {
+function getHistory(req, reply) {
   try {
     const { type, limit = 50, offset = 0 } = req.query;
 
@@ -51,7 +51,7 @@ function getHistory(req, res) {
       [req.user.id]
     );
 
-    res.json({
+    return reply.send({
       transactions,
       pagination: {
         total: total ? total.count : 0,
@@ -61,7 +61,7 @@ function getHistory(req, res) {
     });
   } catch (error) {
     console.error('History error:', error);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to fetch history' });
+    throw error;
   }
 }
 
