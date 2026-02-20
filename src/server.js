@@ -108,25 +108,35 @@ fastify.get('/api/market/instruments/:id', (request, reply) => {
   return reply.send(instrument);
 });
 
+const { PassThrough } = require('stream');
+
 fastify.get('/api/market/instruments/:ticker/stream', (request, reply) => {
   const { ticker } = request.params;
   
-  // Set headers for SSE in HTTP/2 (Fastify)
-  reply.raw.setHeader('Content-Type', 'text/event-stream');
-  reply.raw.setHeader('Cache-Control', 'no-cache');
-  // reply.raw.setHeader('Connection', 'keep-alive'); // Not strictly needed for HTTP/2, but ok
-  reply.raw.setHeader('X-Accel-Buffering', 'no'); 
+  // Set headers natively through Fastify for HTTP/2 Stream Support
+  reply.header('Content-Type', 'text/event-stream');
+  reply.header('Cache-Control', 'no-cache');
+  reply.header('X-Accel-Buffering', 'no'); 
 
   console.log(`📡 New stream client for ${ticker}`);
 
-  const added = marketService.addInstrumentClient(ticker, reply.raw);
+  const stream = new PassThrough();
+  
+  // Pass the Node.js Stream into marketService instead of raw socket
+  const added = marketService.addInstrumentClient(ticker, stream);
   
   if (!added) {
-    reply.code(404).send();
-  } else {
-    // Keep connection alive
-    reply.hijack();
+    return reply.code(404).send();
   }
+  
+  // When the HTTP connection is closed by the browser
+  request.raw.on('close', () => {
+    console.log(`📡 Client disconnected from ${ticker}`);
+    stream.end();
+  });
+
+  // Fastify will keep connection open as long as stream is active
+  return reply.send(stream);
 });
 
 // ─── Global Error Handler ────────────────────────────────────────────
