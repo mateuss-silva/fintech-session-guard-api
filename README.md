@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="https://raw.githubusercontent.com/fastify/graphics/master/fastify-logo-black.png" height="50" alt="Fastify logo" />
+  <img src="https://github.com/fastify/graphics/raw/HEAD/fastify-landscape-outlined.svg" height="50" alt="Fastify logo" />
   <br />
   🔐 Fintech Session Guard API
 </h1>
