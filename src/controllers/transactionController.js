@@ -249,9 +249,9 @@ function previewWithdrawMoney(req, reply) {
     // Format for client
     const assetsToSellFormatted = liquidationPlan.assetsToSell.map(a => ({
       ticker: a.ticker,
-      quantitySold: Math.round(a.quantitySold * 100000) / 100000,
-      valueGenerated: Math.round(a.valueGenerated * 100) / 100,
-      priceAtExecution: a.priceAtExecution
+      quantity_sold: Math.round(a.quantitySold * 100000) / 100000,
+      value_generated: Math.round(a.valueGenerated * 100) / 100,
+      price_at_execution: a.priceAtExecution
     }));
 
     return reply.send({
