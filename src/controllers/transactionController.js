@@ -133,14 +133,17 @@ function _calculateLiquidation(userId, shortfall) {
 
   for (const item of portfolioItems) {
     const priceData = marketService.prices[item.ticker];
-    const currentPrice = priceData ? priceData.current : item.avg_price;
+    const currentPrice = (priceData && priceData.current != null) ? priceData.current : (item.avg_price || 0);
     const totalValue = item.quantity * currentPrice;
-    totalAssetValue += totalValue;
+    
+    if (!isNaN(totalValue)) {
+      totalAssetValue += totalValue;
+    }
     
     assetMarketValues.push({
       ...item,
       currentPrice,
-      totalValue
+      totalValue: isNaN(totalValue) ? 0 : totalValue
     });
   }
 
@@ -158,21 +161,27 @@ function _calculateLiquidation(userId, shortfall) {
   for (const asset of assetMarketValues) {
     if (remainingShortfall <= 0) break;
 
-    const valueToSell = Math.min(asset.totalValue, remainingShortfall);
-    const quantityToSell = valueToSell / asset.currentPrice;
-    const newQuantity = asset.quantity - quantityToSell;
+    const currentAssetPrice = asset.currentPrice > 0 ? asset.currentPrice : 1; 
+    
+    const maxSharesWeCanSell = asset.quantity;
+    const maxMoneyWeCanGet = maxSharesWeCanSell * currentAssetPrice;
+    
+    const moneyNeededFromThisAsset = Math.min(maxMoneyWeCanGet, remainingShortfall);
+    const exactSharesToSell = moneyNeededFromThisAsset / currentAssetPrice;
+    
+    const newQuantity = Math.max(0, asset.quantity - exactSharesToSell);
 
     assetsToSell.push({
       id: asset.id,
       assetName: asset.asset_name,
       ticker: asset.ticker,
-      quantitySold: quantityToSell,
-      valueGenerated: valueToSell,
-      priceAtExecution: asset.currentPrice,
+      quantitySold: exactSharesToSell,
+      valueGenerated: moneyNeededFromThisAsset,
+      priceAtExecution: currentAssetPrice,
       newQuantity: newQuantity
     });
 
-    remainingShortfall -= valueToSell;
+    remainingShortfall -= moneyNeededFromThisAsset;
   }
 
   return {
@@ -308,6 +317,7 @@ function withdrawMoney(req, reply) {
         });
       }
 
+      let totalValueGenerated = 0;
       for (const asset of liquidationPlan.assetsToSell) {
         if (asset.newQuantity <= 0.000001) {
           runSql('DELETE FROM portfolio WHERE id = ?', [asset.id]);
@@ -326,17 +336,19 @@ function withdrawMoney(req, reply) {
           valueGenerated: asset.valueGenerated,
           priceAtExecution: asset.priceAtExecution
         });
+        
+        totalValueGenerated += asset.valueGenerated;
       }
       
-      // After selling, BRL balance is logically equal to 'amount', but since we sold assets and withdrew immediately,
-      // the new BRL balance will be exactly 0 (or very close to it).
-      // If BRL didn't exist before, it's fine, we don't need to create it because balance becomes 0.
+      // Calculate leftover change
+      const newBrlBalance = (currentBrlBalance + totalValueGenerated) - amount;
+
       if (brlAsset) {
-        runSql('UPDATE portfolio SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [0, brlAsset.id]);
+        runSql('UPDATE portfolio SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newBrlBalance, brlAsset.id]);
       } else {
         runSql(
           'INSERT INTO portfolio (id, user_id, asset_name, asset_type, ticker, quantity, avg_price, current_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [uuidv4(), req.user.id, 'Saldo em Conta (BRL)', 'currency', 'BRL', 0, 1.00, 1.00]
+          [uuidv4(), req.user.id, 'Saldo em Conta (BRL)', 'currency', 'BRL', newBrlBalance, 1.00, 1.00]
         );
       }
     } else {

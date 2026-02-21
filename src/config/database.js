@@ -222,21 +222,21 @@ async function seedDemoData() {
     [userId, 'demo@fintech.com', passwordHash, pinHash, 'Investidor Demo']);
 
   const assets = [
-    { name: 'Tesouro Selic 2029', type: 'renda_fixa', ticker: 'SELIC29', qty: 10, avg: 14250.00, current: 14580.00 },
-    { name: 'Tesouro IPCA+ 2035', type: 'renda_fixa', ticker: 'IPCA35', qty: 5, avg: 2890.00, current: 2950.00 },
-    { name: 'CDB Banco XYZ 120% CDI', type: 'renda_fixa', ticker: 'CDB-XYZ', qty: 1, avg: 50000.00, current: 53200.00 },
-    { name: 'FII HGLG11', type: 'fii', ticker: 'HGLG11', qty: 100, avg: 158.50, current: 165.20 },
-    { name: 'FII XPML11', type: 'fii', ticker: 'XPML11', qty: 50, avg: 98.30, current: 102.10 },
-    { name: 'FII KNCR11', type: 'fii', ticker: 'KNCR11', qty: 80, avg: 100.50, current: 101.80 },
-    { name: 'PETR4', type: 'acao', ticker: 'PETR4', qty: 200, avg: 32.50, current: 38.70 },
-    { name: 'VALE3', type: 'acao', ticker: 'VALE3', qty: 150, avg: 68.20, current: 72.40 },
-    { name: 'ITUB4', type: 'acao', ticker: 'ITUB4', qty: 300, avg: 25.80, current: 27.90 },
-    { name: 'WEGE3', type: 'acao', ticker: 'WEGE3', qty: 100, avg: 35.00, current: 38.50 },
-    { name: 'BBAS3', type: 'acao', ticker: 'BBAS3', qty: 200, avg: 50.00, current: 55.40 },
-    { name: 'Bitcoin', type: 'crypto', ticker: 'BTC', qty: 0.05, avg: 350000.00, current: 380000.00 },
-    { name: 'Ethereum', type: 'crypto', ticker: 'ETH', qty: 1.5, avg: 12500.00, current: 13800.00 },
-    { name: 'Solana', type: 'crypto', ticker: 'SOL', qty: 20, avg: 450.00, current: 600.00 },
-    { name: 'Saldo em Conta (BRL)', type: 'currency', ticker: 'BRL', qty: Math.floor(Math.random() * 50001) + 50000, avg: 1.00, current: 1.00 },
+    { name: 'Tesouro Selic 2029', type: 'renda_fixa', ticker: 'SELIC29', qty: 2.5, avg: 13950.00, current: 14580.00 },
+    { name: 'Tesouro IPCA+ 2035', type: 'renda_fixa', ticker: 'IPCA35', qty: 15.2, avg: 2890.00, current: 2950.00 },
+    { name: 'CDB Banco Inter 110% CDI', type: 'renda_fixa', ticker: 'CDB-INTR', qty: 1, avg: 15000.00, current: 15820.00 },
+    { name: 'FII HGLG11', type: 'fii', ticker: 'HGLG11', qty: 250, avg: 161.50, current: 165.20 },
+    { name: 'FII XPML11', type: 'fii', ticker: 'XPML11', qty: 125, avg: 95.30, current: 102.10 },
+    { name: 'FII KNCR11', type: 'fii', ticker: 'KNCR11', qty: 300, avg: 98.50, current: 101.80 },
+    { name: 'Petrobras PN', type: 'acao', ticker: 'PETR4', qty: 800, avg: 29.50, current: 38.70 },
+    { name: 'Vale ON', type: 'acao', ticker: 'VALE3', qty: 450, avg: 72.20, current: 65.40 }, // Loss example
+    { name: 'Itaú Unibanco PN', type: 'acao', ticker: 'ITUB4', qty: 1200, avg: 22.80, current: 27.90 },
+    { name: 'WEG ON', type: 'acao', ticker: 'WEGE3', qty: 350, avg: 31.00, current: 38.50 },
+    { name: 'Banco do Brasil ON', type: 'acao', ticker: 'BBAS3', qty: 600, avg: 48.00, current: 55.40 },
+    { name: 'Bitcoin', type: 'crypto', ticker: 'BTC', qty: 0.25, avg: 280000.00, current: 380000.00 },
+    { name: 'Ethereum', type: 'crypto', ticker: 'ETH', qty: 4.5, avg: 11500.00, current: 13800.00 },
+    { name: 'Solana', type: 'crypto', ticker: 'SOL', qty: 85, avg: 450.00, current: 600.00 },
+    { name: 'Saldo em Conta (BRL)', type: 'currency', ticker: 'BRL', qty: 6542.50, avg: 1.00, current: 1.00 },
   ];
 
   for (const asset of assets) {
@@ -248,18 +248,24 @@ async function seedDemoData() {
 
   // Seed Transactions History
   const transactions = [
-    { type: 'buy', ticker: 'BTC', amount: 5000.00, qty: 0.014, status: 'completed' },
-    { type: 'buy', ticker: 'PETR4', amount: 3250.00, qty: 100, status: 'completed' },
-    { type: 'deposit', amount: 10000.00, status: 'completed' },
-    { type: 'buy', ticker: 'HGLG11', amount: 15850.00, qty: 100, status: 'completed' },
-    { type: 'redeem', ticker: 'CDB-XYZ', amount: 2000.00, qty: 0, status: 'completed', bio: 1 },
-    { type: 'transfer', amount: 1500.00, status: 'completed', bio: 1, asset_name: 'Transfer to John Doe' },
-    { type: 'buy', ticker: 'ETH', amount: 6250.00, qty: 0.5, status: 'completed' },
-    { type: 'redeem', ticker: 'SELIC29', amount: 1000.00, qty: 0, status: 'completed', bio: 1 },
-    { type: 'buy', ticker: 'VALE3', amount: 6820.00, qty: 100, status: 'completed' },
-    { type: 'deposit', amount: 50000.00, status: 'completed' },
-    { type: 'transfer', amount: 250.00, status: 'completed', bio: 1, asset_name: 'Coffee Shop' },
-    { type: 'transfer', amount: 120.50, status: 'completed', bio: 1, asset_name: 'Uber Ride' },
+    { type: 'buy', ticker: 'BTC', amount: 35000.00, qty: 0.125, status: 'completed' },
+    { type: 'buy', ticker: 'PETR4', amount: 11800.00, qty: 400, status: 'completed' },
+    { type: 'deposit', amount: 25000.00, status: 'completed' },
+    { type: 'buy', ticker: 'HGLG11', amount: 16150.00, qty: 100, status: 'completed' },
+    { type: 'redeem', ticker: 'CDB-INTR', amount: 5000.00, qty: 0, status: 'completed', bio: 1 },
+    { type: 'transfer', amount: 1500.00, status: 'completed', bio: 1, asset_name: 'Transferência Pix' },
+    { type: 'sell', ticker: 'VALE3', amount: 13080.00, qty: 200, status: 'completed' },
+    { type: 'buy', ticker: 'ETH', amount: 23000.00, qty: 2.0, status: 'completed' },
+    { type: 'deposit', amount: 18500.00, status: 'completed' },
+    { type: 'buy', ticker: 'ITUB4', amount: 13680.00, qty: 600, status: 'completed' },
+    { type: 'redeem', ticker: 'SELIC29', amount: 13950.00, qty: 1.0, status: 'completed', bio: 1 },
+    { type: 'buy', ticker: 'BBAS3', amount: 14400.00, qty: 300, status: 'completed' },
+    { type: 'transfer', amount: 250.00, status: 'completed', bio: 1, asset_name: 'Pagamento Boleto Luz' },
+    { type: 'transfer', amount: 485.50, status: 'completed', bio: 1, asset_name: 'Cartão de Crédito' },
+    { type: 'withdraw', amount: 2000.00, status: 'completed', bio: 1 },
+    { type: 'buy', ticker: 'SOL', amount: 18000.00, qty: 40, status: 'completed' },
+    { type: 'sell', ticker: 'WEGE3', amount: 7700.00, qty: 200, status: 'completed' },
+    { type: 'deposit', amount: 100000.00, status: 'completed' },
   ];
 
   const now = new Date();
