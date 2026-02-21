@@ -57,6 +57,26 @@ describe('Portfolio API', () => {
       expect(summary.totalAssets).toBe(1);
     });
 
+    it('should explicitly verify that totalBalance matches availableBalance + totalCurrent', async () => {
+      const res = await app.inject({ method: 'GET', url: '/api/portfolio/summary' });
+      expect(res.statusCode).toBe(200);
+      
+      const payload = JSON.parse(res.payload);
+      const { summary, assets } = payload;
+      
+      // Calculate the sum of all assets
+      const sumOfAssets = assets.reduce((acc, asset) => acc + asset.currentValue, 0);
+      
+      // The math rule: totalBalance must exactly equal availableBalance + sum of all assets
+      const calculatedTotal = summary.availableBalance + sumOfAssets;
+      
+      // Floating point precision match
+      const expectedTotal = Math.round(calculatedTotal * 100) / 100;
+      
+      expect(summary.totalCurrent).toBe(Math.round(sumOfAssets * 100) / 100);
+      expect(summary.totalBalance).toBe(expectedTotal);
+    });
+
     it('should include categorized stats (byType)', async () => {
       const res = await app.inject({ method: 'GET', url: '/api/portfolio/summary' });
       expect(res.statusCode).toBe(200);

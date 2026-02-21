@@ -8,4 +8,5 @@ module.exports = async function (fastify, opts) {
 
   fastify.get('/', portfolioController.getPortfolio);
   fastify.get('/summary', portfolioController.getPortfolio);
+  fastify.get('/stream', portfolioController.streamPortfolio);
 };

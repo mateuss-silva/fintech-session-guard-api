@@ -7,9 +7,16 @@ const { queryOne } = require('../config/database');
  * Binds token to device — prevents token use from different device
  */
 function authenticate(request, reply, done) {
+  let token;
   const authHeader = request.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (request.query && request.query.token) {
+    token = request.query.token;
+  }
+
+  if (!token) {
     reply.code(401).send({
       error: 'MISSING_TOKEN',
       message: 'Access token is required',
@@ -17,7 +24,6 @@ function authenticate(request, reply, done) {
     return;
   }
 
-  const token = authHeader.split(' ')[1];
   const decoded = verifyAccessToken(token);
 
   if (!decoded) {
