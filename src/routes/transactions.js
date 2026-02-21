@@ -9,4 +9,5 @@ module.exports = async function (fastify, opts) {
   fastify.get('/history', transactionController.getHistory);
   fastify.post('/deposit', transactionController.depositMoney);
   fastify.post('/withdraw', transactionController.withdrawMoney);
+  fastify.post('/withdraw/preview', transactionController.previewWithdrawMoney);
 };

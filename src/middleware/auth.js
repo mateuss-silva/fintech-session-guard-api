@@ -14,6 +14,8 @@ function authenticate(request, reply, done) {
     token = authHeader.split(' ')[1];
   } else if (request.query && request.query.token) {
     token = request.query.token;
+  } else if (request.body && request.body.token) {
+    token = request.body.token;
   }
 
   if (!token) {

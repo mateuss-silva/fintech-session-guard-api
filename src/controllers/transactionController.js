@@ -122,6 +122,143 @@ function depositMoney(req, reply) {
   }
 }
 
+function _calculateLiquidation(userId, shortfall) {
+  const portfolioItems = queryAll(
+    'SELECT id, asset_name, asset_type, ticker, quantity, avg_price FROM portfolio WHERE user_id = ? AND ticker != ? ORDER BY id', 
+    [userId, 'BRL']
+  );
+
+  let totalAssetValue = 0;
+  const assetMarketValues = [];
+
+  for (const item of portfolioItems) {
+    const priceData = marketService.prices[item.ticker];
+    const currentPrice = priceData ? priceData.current : item.avg_price;
+    const totalValue = item.quantity * currentPrice;
+    totalAssetValue += totalValue;
+    
+    assetMarketValues.push({
+      ...item,
+      currentPrice,
+      totalValue
+    });
+  }
+
+  if (totalAssetValue < shortfall) {
+    return {
+      canCover: false,
+      totalAssetValue,
+      assetsToSell: []
+    };
+  }
+
+  let remainingShortfall = shortfall;
+  const assetsToSell = [];
+
+  for (const asset of assetMarketValues) {
+    if (remainingShortfall <= 0) break;
+
+    const valueToSell = Math.min(asset.totalValue, remainingShortfall);
+    const quantityToSell = valueToSell / asset.currentPrice;
+    const newQuantity = asset.quantity - quantityToSell;
+
+    assetsToSell.push({
+      id: asset.id,
+      assetName: asset.asset_name,
+      ticker: asset.ticker,
+      quantitySold: quantityToSell,
+      valueGenerated: valueToSell,
+      priceAtExecution: asset.currentPrice,
+      newQuantity: newQuantity
+    });
+
+    remainingShortfall -= valueToSell;
+  }
+
+  return {
+    canCover: true,
+    totalAssetValue,
+    assetsToSell
+  };
+}
+
+/**
+ * @swagger
+ * /api/transactions/withdraw/preview:
+ *   post:
+ *     summary: Preview a withdrawal to see if assets must be liquidated
+ *     tags: [Transactions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [amount]
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: Withdrawal amount
+ *     responses:
+ *       200:
+ *         description: Preview details
+ */
+function previewWithdrawMoney(req, reply) {
+  try {
+    const { amount } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return reply.code(400).send({ message: 'Invalid withdrawal amount' });
+    }
+
+    const brlAsset = queryOne('SELECT * FROM portfolio WHERE user_id = ? AND ticker = ?', [req.user.id, 'BRL']);
+    const currentBrlBalance = brlAsset ? brlAsset.quantity : 0;
+    
+    if (currentBrlBalance >= amount) {
+      return reply.send({
+        requires_liquidation: false,
+        amount_requested: amount,
+        brl_available: currentBrlBalance,
+        assets_to_sell: []
+      });
+    }
+
+    const shortfall = amount - currentBrlBalance;
+    const liquidationPlan = _calculateLiquidation(req.user.id, shortfall);
+
+    if (!liquidationPlan.canCover) {
+      return reply.code(400).send({ 
+        message: 'Insufficient portfolio value to cover this withdrawal. ' + 
+                 `Requested: ${amount.toFixed(2)}, ` +
+                 `Available BRL: ${currentBrlBalance.toFixed(2)}, ` +
+                 `Total Assets Value: ${liquidationPlan.totalAssetValue.toFixed(2)}` 
+      });
+    }
+
+    // Format for client
+    const assetsToSellFormatted = liquidationPlan.assetsToSell.map(a => ({
+      ticker: a.ticker,
+      quantitySold: Math.round(a.quantitySold * 100000) / 100000,
+      valueGenerated: Math.round(a.valueGenerated * 100) / 100,
+      priceAtExecution: a.priceAtExecution
+    }));
+
+    return reply.send({
+      requires_liquidation: true,
+      amount_requested: amount,
+      brl_available: currentBrlBalance,
+      shortfall: shortfall,
+      assets_to_sell: assetsToSellFormatted
+    });
+
+  } catch (error) {
+    console.error('Preview withdrawal error:', error);
+    throw error;
+  }
+}
+
 /**
  * @swagger
  * /api/transactions/withdraw:
@@ -160,67 +297,35 @@ function withdrawMoney(req, reply) {
 
     if (currentBrlBalance < amount) {
       const shortfall = amount - currentBrlBalance;
-      
-      // Get all other assets
-      const portfolioItems = queryAll(
-        'SELECT id, asset_name, asset_type, ticker, quantity, avg_price FROM portfolio WHERE user_id = ? AND ticker != ? ORDER BY id', 
-        [req.user.id, 'BRL']
-      );
+      const liquidationPlan = _calculateLiquidation(req.user.id, shortfall);
 
-      let totalAssetValue = 0;
-      const assetMarketValues = [];
-
-      for (const item of portfolioItems) {
-        const priceData = marketService.prices[item.ticker];
-        const currentPrice = priceData ? priceData.current : item.avg_price;
-        const totalValue = item.quantity * currentPrice;
-        totalAssetValue += totalValue;
-        
-        assetMarketValues.push({
-          ...item,
-          currentPrice,
-          totalValue
-        });
-      }
-
-      if (totalAssetValue < shortfall) {
+      if (!liquidationPlan.canCover) {
         return reply.code(400).send({ 
           message: 'Insufficient portfolio value to cover this withdrawal. ' + 
                    `Requested: ${amount.toFixed(2)}, ` +
                    `Available BRL: ${currentBrlBalance.toFixed(2)}, ` +
-                   `Total Assets Value: ${totalAssetValue.toFixed(2)}` 
+                   `Total Assets Value: ${liquidationPlan.totalAssetValue.toFixed(2)}` 
         });
       }
 
-      let remainingShortfall = shortfall;
-
-      for (const asset of assetMarketValues) {
-        if (remainingShortfall <= 0) break;
-
-        const valueToSell = Math.min(asset.totalValue, remainingShortfall);
-        const quantityToSell = valueToSell / asset.currentPrice;
-
-        const newQuantity = asset.quantity - quantityToSell;
-
-        if (newQuantity <= 0.000001) {
+      for (const asset of liquidationPlan.assetsToSell) {
+        if (asset.newQuantity <= 0.000001) {
           runSql('DELETE FROM portfolio WHERE id = ?', [asset.id]);
         } else {
-          runSql('UPDATE portfolio SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newQuantity, asset.id]);
+          runSql('UPDATE portfolio SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [asset.newQuantity, asset.id]);
         }
 
         runSql(
           'INSERT INTO transactions (id, user_id, type, asset_name, ticker, amount, quantity, price_at_execution, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [uuidv4(), req.user.id, 'sell', asset.asset_name, asset.ticker, valueToSell, quantityToSell, asset.currentPrice, 'completed', new Date().toISOString()]
+          [uuidv4(), req.user.id, 'sell', asset.assetName, asset.ticker, asset.valueGenerated, asset.quantitySold, asset.priceAtExecution, 'completed', new Date().toISOString()]
         );
 
         soldAssetsDetails.push({
           ticker: asset.ticker,
-          quantitySold: quantityToSell,
-          valueGenerated: valueToSell,
-          priceAtExecution: asset.currentPrice
+          quantitySold: asset.quantitySold,
+          valueGenerated: asset.valueGenerated,
+          priceAtExecution: asset.priceAtExecution
         });
-
-        remainingShortfall -= valueToSell;
       }
       
       // After selling, BRL balance is logically equal to 'amount', but since we sold assets and withdrew immediately,
@@ -255,4 +360,4 @@ function withdrawMoney(req, reply) {
   }
 }
 
-module.exports = { getHistory, depositMoney, withdrawMoney };
+module.exports = { getHistory, depositMoney, withdrawMoney, previewWithdrawMoney };
