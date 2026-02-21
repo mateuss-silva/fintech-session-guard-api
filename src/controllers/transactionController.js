@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { queryOne, queryAll, runSql } = require('../config/database');
+const marketService = require('../services/marketService');
 
 /**
  * @swagger
@@ -153,19 +154,101 @@ function withdrawMoney(req, reply) {
     }
 
     const brlAsset = queryOne('SELECT * FROM portfolio WHERE user_id = ? AND ticker = ?', [req.user.id, 'BRL']);
+    const currentBrlBalance = brlAsset ? brlAsset.quantity : 0;
     
-    if (!brlAsset || brlAsset.quantity < amount) {
-      return reply.code(400).send({ message: 'Insufficient funds for this withdrawal' });
-    }
+    const soldAssetsDetails = [];
 
-    runSql('UPDATE portfolio SET quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [amount, brlAsset.id]);
+    if (currentBrlBalance < amount) {
+      const shortfall = amount - currentBrlBalance;
+      
+      // Get all other assets
+      const portfolioItems = queryAll(
+        'SELECT id, asset_name, asset_type, ticker, quantity, avg_price FROM portfolio WHERE user_id = ? AND ticker != ? ORDER BY id', 
+        [req.user.id, 'BRL']
+      );
+
+      let totalAssetValue = 0;
+      const assetMarketValues = [];
+
+      for (const item of portfolioItems) {
+        const priceData = marketService.prices[item.ticker];
+        const currentPrice = priceData ? priceData.current : item.avg_price;
+        const totalValue = item.quantity * currentPrice;
+        totalAssetValue += totalValue;
+        
+        assetMarketValues.push({
+          ...item,
+          currentPrice,
+          totalValue
+        });
+      }
+
+      if (totalAssetValue < shortfall) {
+        return reply.code(400).send({ 
+          message: 'Insufficient portfolio value to cover this withdrawal. ' + 
+                   `Requested: ${amount.toFixed(2)}, ` +
+                   `Available BRL: ${currentBrlBalance.toFixed(2)}, ` +
+                   `Total Assets Value: ${totalAssetValue.toFixed(2)}` 
+        });
+      }
+
+      let remainingShortfall = shortfall;
+
+      for (const asset of assetMarketValues) {
+        if (remainingShortfall <= 0) break;
+
+        const valueToSell = Math.min(asset.totalValue, remainingShortfall);
+        const quantityToSell = valueToSell / asset.currentPrice;
+
+        const newQuantity = asset.quantity - quantityToSell;
+
+        if (newQuantity <= 0.000001) {
+          runSql('DELETE FROM portfolio WHERE id = ?', [asset.id]);
+        } else {
+          runSql('UPDATE portfolio SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newQuantity, asset.id]);
+        }
+
+        runSql(
+          'INSERT INTO transactions (id, user_id, type, asset_name, ticker, amount, quantity, price_at_execution, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [uuidv4(), req.user.id, 'sell', asset.asset_name, asset.ticker, valueToSell, quantityToSell, asset.currentPrice, 'completed', new Date().toISOString()]
+        );
+
+        soldAssetsDetails.push({
+          ticker: asset.ticker,
+          quantitySold: quantityToSell,
+          valueGenerated: valueToSell,
+          priceAtExecution: asset.currentPrice
+        });
+
+        remainingShortfall -= valueToSell;
+      }
+      
+      // After selling, BRL balance is logically equal to 'amount', but since we sold assets and withdrew immediately,
+      // the new BRL balance will be exactly 0 (or very close to it).
+      // If BRL didn't exist before, it's fine, we don't need to create it because balance becomes 0.
+      if (brlAsset) {
+        runSql('UPDATE portfolio SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [0, brlAsset.id]);
+      } else {
+        runSql(
+          'INSERT INTO portfolio (id, user_id, asset_name, asset_type, ticker, quantity, avg_price, current_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [uuidv4(), req.user.id, 'Saldo em Conta (BRL)', 'currency', 'BRL', 0, 1.00, 1.00]
+        );
+      }
+    } else {
+      // Sufficient BRL balance, just deduct
+      runSql('UPDATE portfolio SET quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [amount, brlAsset.id]);
+    }
 
     runSql(
       'INSERT INTO transactions (id, user_id, type, amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
       [uuidv4(), req.user.id, 'withdraw', amount, 'completed', new Date().toISOString()]
     );
 
-    return reply.send({ message: 'Withdrawal successful', amount_withdrawn: amount });
+    return reply.send({ 
+      message: soldAssetsDetails.length > 0 ? 'Withdrawal successful with automatic asset selling' : 'Withdrawal successful', 
+      amount_withdrawn: amount,
+      assets_sold_to_cover: soldAssetsDetails
+    });
   } catch (error) {
     console.error('Withdrawal error:', error);
     throw error;
