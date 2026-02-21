@@ -26,6 +26,8 @@ const marketService = require('../services/marketService');
  *                     totalProfit: { type: number }
  * 
  *                     availableBalance: { type: number }
+ *                     availableForInvestment: { type: number }
+ *                     availableForWithdrawal: { type: number }
  *                     totalAssets: { type: integer }
  *                 assets:
  *                   type: array
@@ -95,6 +97,8 @@ function getPortfolio(req, reply) {
         totalCurrent: Math.round(totalCurrent * 100) / 100,
         totalProfit: Math.round((totalCurrent - totalInvested) * 100) / 100,
         availableBalance: Math.round(availableBalance * 100) / 100,
+        availableForInvestment: Math.round(availableBalance * 100) / 100,
+        availableForWithdrawal: Math.round(totalBalance * 100) / 100,
         totalAssets: totalAssets,
       },
       byType: Object.values(byTypeMap),
