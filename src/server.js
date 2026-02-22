@@ -97,6 +97,11 @@ const { authenticate } = require('./middleware/auth');
 
 fastify.post('/api/trade/buy', { preHandler: [authenticate] }, tradeController.buy);
 fastify.post('/api/trade/sell', { preHandler: [authenticate] }, tradeController.sell);
+
+fastify.get('/api/market/status', (request, reply) => {
+  return reply.send(marketService.getMarketStatus());
+});
+
 fastify.get('/api/market/instruments', tradeController.searchInstruments);
 
 fastify.get('/api/market/instruments/:id', (request, reply) => {

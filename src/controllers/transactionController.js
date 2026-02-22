@@ -235,6 +235,13 @@ function previewWithdrawMoney(req, reply) {
     }
 
     const shortfall = amount - currentBrlBalance;
+    if (shortfall > 0 && !marketService.isMarketOpen()) {
+      return reply.code(400).send({
+        message: 'Market is closed. Cannot liquidate assets to cover the withdrawal shortfall.',
+        status: 'MARKET_CLOSED'
+      });
+    }
+
     const liquidationPlan = _calculateLiquidation(req.user.id, shortfall);
 
     if (!liquidationPlan.canCover) {
@@ -249,9 +256,9 @@ function previewWithdrawMoney(req, reply) {
     // Format for client
     const assetsToSellFormatted = liquidationPlan.assetsToSell.map(a => ({
       ticker: a.ticker,
-      quantity_sold: Math.round(a.quantitySold * 100000) / 100000,
-      value_generated: Math.round(a.valueGenerated * 100) / 100,
-      price_at_execution: a.priceAtExecution
+      quantitySold: Math.round(a.quantitySold * 100000) / 100000,
+      valueGenerated: Math.round(a.valueGenerated * 100) / 100,
+      priceAtExecution: a.priceAtExecution
     }));
 
     return reply.send({
@@ -306,6 +313,13 @@ function withdrawMoney(req, reply) {
 
     if (currentBrlBalance < amount) {
       const shortfall = amount - currentBrlBalance;
+      if (shortfall > 0 && !marketService.isMarketOpen()) {
+        return reply.code(400).send({
+          message: 'Market is closed. Cannot liquidate assets to cover the withdrawal shortfall.',
+          status: 'MARKET_CLOSED'
+        });
+      }
+
       const liquidationPlan = _calculateLiquidation(req.user.id, shortfall);
 
       if (!liquidationPlan.canCover) {

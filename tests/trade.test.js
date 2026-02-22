@@ -18,6 +18,7 @@ jest.mock('../src/services/marketService', () => {
     return {
         getPrice: jest.fn(),
         initialize: jest.fn(),
+        isMarketOpen: jest.fn().mockReturnValue(true),
         isRunning: true,
         prices: { 'TEST-ASSET': { current: 100.00 } },
         on: (event, cb) => emitter.on(event, cb),

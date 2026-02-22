@@ -101,6 +101,7 @@ function _calculatePortfolio(userId) {
       availableForInvestment: Math.round(availableBalance * 100) / 100,
       availableForWithdrawal: Math.round(totalBalance * 100) / 100,
       totalAssets: totalAssets,
+      isMarketOpen: marketService.isMarketOpen(),
     },
     byType: Object.values(byTypeMap),
     assets: assets

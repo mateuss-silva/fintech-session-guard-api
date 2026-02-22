@@ -101,6 +101,10 @@ function updatePortfolioAsset(userId, ticker, quantityChange, priceAtExecution, 
  */
 async function buy(req, reply) {
   try {
+    if (!marketService.isMarketOpen()) {
+      throw new ValidationError('Market is currently closed. Trading hours are 9 AM to 12 PM.', 'MARKET_CLOSED');
+    }
+
     const { ticker, quantity, pin, biometricToken } = req.body;
     
     if (!ticker || !quantity || quantity <= 0) {
@@ -194,6 +198,10 @@ async function buy(req, reply) {
  */
 async function sell(req, reply) {
   try {
+    if (!marketService.isMarketOpen()) {
+      throw new ValidationError('Market is currently closed. Trading hours are 9 AM to 12 PM.', 'MARKET_CLOSED');
+    }
+
     const { ticker, quantity, pin, biometricToken } = req.body;
 
     if (!ticker || !quantity || quantity <= 0) {
