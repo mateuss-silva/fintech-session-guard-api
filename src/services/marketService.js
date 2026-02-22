@@ -253,10 +253,10 @@ class MarketService extends EventEmitter {
   }
 
   isMarketOpen() {
-    // 9 AM to 12 PM local server time
+    // 9 AM to 11:59 PM local server time
     const now = new Date();
     const hours = now.getHours();
-    return hours >= 9 && hours < 12; // 09:00:00 to 11:59:59
+    return hours >= 9 && hours < 24; // 09:00:00 to 23:59:59
   }
 
   getMarketStatus() {

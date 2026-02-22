@@ -100,7 +100,7 @@ describe('Transaction API', () => {
       const data = JSON.parse(res.payload);
       expect(data.message).toBe('Withdrawal successful with automatic asset selling');
       expect(data.assets_sold_to_cover.length).toBe(1);
-      expect(data.assets_sold_to_cover[0].valueGenerated).toBe(100);
+      expect(data.assets_sold_to_cover[0].value_generated).toBe(100);
       
       const { queryOne } = require('../src/config/database');
       const brl = queryOne('SELECT * FROM portfolio WHERE user_id = ? AND ticker = ?', ['test-user-id', 'BRL']);
@@ -164,8 +164,8 @@ describe('Transaction API', () => {
       expect(data.shortfall).toBe(100);
       expect(data.assets_to_sell.length).toBe(1);
       expect(data.assets_to_sell[0].ticker).toBe('TEST-ASSET');
-      expect(data.assets_to_sell[0].quantitySold).toBe(1.0); // 100 value / 100 price
-      expect(data.assets_to_sell[0].valueGenerated).toBe(100);
+      expect(data.assets_to_sell[0].quantity_sold).toBe(1.0); // 100 value / 100 price
+      expect(data.assets_to_sell[0].value_generated).toBe(100);
       
       // Verify NO MUTATION
       const { queryOne } = require('../src/config/database');

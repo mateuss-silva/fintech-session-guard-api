@@ -159,29 +159,40 @@ function _calculateLiquidation(userId, shortfall) {
   const assetsToSell = [];
 
   for (const asset of assetMarketValues) {
-    if (remainingShortfall <= 0) break;
+    // If the shortfall is practically zero (less than a cent), stop liquidating
+    if (remainingShortfall < 0.01) break;
 
     const currentAssetPrice = asset.currentPrice > 0 ? asset.currentPrice : 1; 
     
     const maxSharesWeCanSell = asset.quantity;
     const maxMoneyWeCanGet = maxSharesWeCanSell * currentAssetPrice;
     
+    // Skip assets that generate less than 1 cent (dust)
+    if (maxMoneyWeCanGet < 0.01) continue;
+
     const moneyNeededFromThisAsset = Math.min(maxMoneyWeCanGet, remainingShortfall);
+
+    // We must sell whole shares, so we round UP to ensure we cover the shortfall
     const exactSharesToSell = moneyNeededFromThisAsset / currentAssetPrice;
+    const sharesToSell = Math.min(Math.ceil(exactSharesToSell), maxSharesWeCanSell);
     
-    const newQuantity = Math.max(0, asset.quantity - exactSharesToSell);
+    // The actual money we get by selling these whole shares
+    const actualMoneyGenerated = sharesToSell * currentAssetPrice;
+    
+    const newQuantity =
+     Math.max(0, asset.quantity - sharesToSell);
 
     assetsToSell.push({
       id: asset.id,
       assetName: asset.asset_name,
       ticker: asset.ticker,
-      quantitySold: exactSharesToSell,
-      valueGenerated: moneyNeededFromThisAsset,
+      quantitySold: sharesToSell,
+      valueGenerated: actualMoneyGenerated,
       priceAtExecution: currentAssetPrice,
       newQuantity: newQuantity
     });
 
-    remainingShortfall -= moneyNeededFromThisAsset;
+    remainingShortfall -= actualMoneyGenerated;
   }
 
   return {
@@ -256,9 +267,9 @@ function previewWithdrawMoney(req, reply) {
     // Format for client
     const assetsToSellFormatted = liquidationPlan.assetsToSell.map(a => ({
       ticker: a.ticker,
-      quantitySold: Math.round(a.quantitySold * 100000) / 100000,
-      valueGenerated: Math.round(a.valueGenerated * 100) / 100,
-      priceAtExecution: a.priceAtExecution
+      quantity_sold: Math.round(a.quantitySold * 100000) / 100000,
+      value_generated: Math.round(a.valueGenerated * 100) / 100,
+      price_at_execution: a.priceAtExecution
     }));
 
     return reply.send({
@@ -346,9 +357,9 @@ function withdrawMoney(req, reply) {
 
         soldAssetsDetails.push({
           ticker: asset.ticker,
-          quantitySold: asset.quantitySold,
-          valueGenerated: asset.valueGenerated,
-          priceAtExecution: asset.priceAtExecution
+          quantity_sold: asset.quantitySold,
+          value_generated: asset.valueGenerated,
+          price_at_execution: asset.priceAtExecution
         });
         
         totalValueGenerated += asset.valueGenerated;
