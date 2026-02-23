@@ -3,21 +3,25 @@ require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
 
-// Create Fastify with optional HTTP/2 (SSL handled by PaaS in production)
+// Create Fastify with optional HTTP/2 (Only for local development)
 let httpsOptions = null;
-try {
-  const keyPath = path.join(__dirname, '../localhost.key');
-  const certPath = path.join(__dirname, '../localhost.crt');
-  
-  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
-    httpsOptions = {
-      allowHTTP1: true,
-      key: fs.readFileSync(keyPath),
-      cert: fs.readFileSync(certPath)
-    };
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (!isProduction) {
+  try {
+    const keyPath = path.join(__dirname, '../localhost.key');
+    const certPath = path.join(__dirname, '../localhost.crt');
+    
+    if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+      httpsOptions = {
+        allowHTTP1: true,
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath)
+      };
+    }
+  } catch (error) {
+    console.warn('⚠️ HTTP/2 certificates not loaded correctly.');
   }
-} catch (error) {
-  console.warn('⚠️ HTTP/2 certificates not loaded correctly.');
 }
 
 const fastify = require('fastify')({
