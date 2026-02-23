@@ -5,6 +5,7 @@ const marketService = require('../services/marketService');
 const {
   ValidationError,
   AuthError,
+  ForbiddenError,
   NotFoundError,
   AppError
 } = require('../utils/errors');
@@ -114,7 +115,10 @@ async function buy(req, reply) {
     // Validation PIN/Bio
     const isAuth = await verifyTransactionAuth(req.user.id, pin, biometricToken);
     if (!isAuth) {
-      throw new AuthError('Valid PIN or biometric verification required');
+      if (pin || biometricToken) {
+        throw new ForbiddenError('Invalid PIN', 'INVALID_PIN');
+      }
+      throw new ForbiddenError('Valid PIN or biometric verification required', 'PIN_REQUIRED');
     }
 
     // 1. Get real-time price
@@ -211,7 +215,10 @@ async function sell(req, reply) {
     // Validation PIN/Bio
     const isAuth = await verifyTransactionAuth(req.user.id, pin, biometricToken);
     if (!isAuth) {
-      throw new AuthError('Valid PIN or biometric verification required');
+      if (pin || biometricToken) {
+        throw new ForbiddenError('Invalid PIN', 'INVALID_PIN');
+      }
+      throw new ForbiddenError('Valid PIN or biometric verification required', 'PIN_REQUIRED');
     }
 
     // 1. Get real-time price

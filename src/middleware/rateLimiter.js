@@ -1,4 +1,5 @@
 // Options for @fastify/rate-limit
+const { RateLimitError } = require('../utils/errors');
 
 /**
  * Global rate limiter — 100 requests per 15 minutes
@@ -7,10 +8,7 @@ const globalLimiterOptions = {
   timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
   max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
   errorResponseBuilder: function (request, context) {
-    return {
-      error: 'RATE_LIMIT_EXCEEDED',
-      message: 'Too many requests. Please try again later.',
-    };
+    return new RateLimitError('Too many requests. Please try again later.');
   }
 };
 
@@ -21,10 +19,7 @@ const authLimiterConfig = {
   timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
   max: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '5', 10),
   errorResponseBuilder: function (request, context) {
-    return {
-      error: 'AUTH_RATE_LIMIT_EXCEEDED',
-      message: 'Too many authentication attempts. Please try again later.',
-    };
+    return new RateLimitError('Too many authentication attempts. Please try again later.', 'AUTH_RATE_LIMIT_EXCEEDED');
   }
 };
 
@@ -35,10 +30,7 @@ const sensitiveLimiterConfig = {
   timeWindow: 5 * 60 * 1000,
   max: 3,
   errorResponseBuilder: function (request, context) {
-    return {
-      error: 'SENSITIVE_RATE_LIMIT_EXCEEDED',
-      message: 'Too many sensitive operation attempts. Please try again later.',
-    };
+    return new RateLimitError('Too many sensitive operation attempts. Please try again later.', 'SENSITIVE_RATE_LIMIT_EXCEEDED');
   }
 };
 
