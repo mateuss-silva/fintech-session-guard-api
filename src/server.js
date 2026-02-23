@@ -3,22 +3,26 @@ require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
 
-// Create Fastify with HTTP/2 enabled
+// Create Fastify with optional HTTP/2 (SSL handled by PaaS in production)
 let httpsOptions = null;
 try {
-  httpsOptions = {
-    allowHTTP1: true,
-    key: fs.readFileSync(path.join(__dirname, '../localhost.key')),
-    cert: fs.readFileSync(path.join(__dirname, '../localhost.crt'))
-  };
+  const keyPath = path.join(__dirname, '../localhost.key');
+  const certPath = path.join(__dirname, '../localhost.crt');
+  
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    httpsOptions = {
+      allowHTTP1: true,
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath)
+    };
+  }
 } catch (error) {
-  console.warn('⚠️ HTTP/2 certificates not found! Run "node scripts/generate-certs.js" first.');
-  process.exit(1);
+  console.warn('⚠️ HTTP/2 certificates not loaded correctly.');
 }
 
 const fastify = require('fastify')({
-  logger: false, // Use our custom logger plugin
-  http2: true,
+  logger: false,
+  http2: !!httpsOptions,
   https: httpsOptions
 });
 
@@ -170,14 +174,15 @@ async function startServer() {
       console.warn('⚠️ No assets found to initialize Market Service');
     }
 
+    const protocol = httpsOptions ? 'https' : 'http';
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     
     console.log('');
     console.log('═══════════════════════════════════════════════════════════');
-    console.log('  🔐 Fintech Session Guard API (HTTP/2 Fastify)');
+    console.log('  🔐 Fintech Session Guard API (Fastify)');
     console.log('═══════════════════════════════════════════════════════════');
-    console.log(`  🚀 Server running on https://localhost:${PORT}`);
-    console.log(`  ❤️  Health check:      https://localhost:${PORT}/api/health`);
+    console.log(`  🚀 Server running on ${protocol}://localhost:${PORT}`);
+    console.log(`  ❤️  Health check:      ${protocol}://localhost:${PORT}/api/health`);
     console.log('');
     console.log('  Security Features:');
     console.log('  ├─ ♻️  Token rotation with reuse detection');
