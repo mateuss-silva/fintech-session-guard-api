@@ -49,11 +49,15 @@ fastify.register(require('@fastify/cors'), {
       return callback(null, true);
     }
 
-    // Check against configured CORS_ORIGIN
-    if (process.env.CORS_ORIGIN && (process.env.CORS_ORIGIN === '*' || origin === process.env.CORS_ORIGIN)) {
+    // Check against configured CORS_ORIGIN or allow github.io for demo
+    if (
+      (process.env.CORS_ORIGIN && (process.env.CORS_ORIGIN === '*' || origin === process.env.CORS_ORIGIN)) ||
+      origin.endsWith('.github.io')
+    ) {
       return callback(null, true);
     }
 
+    console.warn(`🚨 CORS blocked for origin: ${origin}`);
     callback(new Error('Not allowed by CORS'), false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
