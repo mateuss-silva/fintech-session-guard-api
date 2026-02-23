@@ -199,6 +199,18 @@ async function initializeDatabase() {
     db.run(idx);
   }
 
+  // Instrument history table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS instrument_history (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      instrument_id TEXT NOT NULL,
+      date      TEXT NOT NULL,
+      value     REAL NOT NULL
+    );
+  `);
+
+  db.run('CREATE INDEX IF NOT EXISTS idx_hist_instrument ON instrument_history(instrument_id, date)');
+
   saveDb();
   console.log('✅ Database initialized successfully');
 }
@@ -283,4 +295,55 @@ async function seedDemoData() {
   console.log('✅ Demo data seeded (email: demo@fintech.com, password: Demo@2024!, pin: 1234)');
 }
 
-module.exports = { getDb, initializeDatabase, seedDemoData, queryAll, queryOne, runSql };
+/**
+ * Seed 5 years of daily price history for each catalog instrument.
+ * Uses a seeded random walk from the instrument's basePrice.
+ * Only runs if the table is empty.
+ */
+function seedInstrumentHistory() {
+  const existing = queryOne('SELECT id FROM instrument_history LIMIT 1');
+  if (existing) {
+    console.log('ℹ️  Instrument history already seeded');
+    return;
+  }
+
+  const marketService = require('../services/marketService');
+  const DAYS = 365 * 5; // 5 years
+  const today = new Date();
+
+  console.log('📈 Seeding 5 years of instrument history...');
+
+  const database = getDb();
+  // Use a raw transaction for performance
+  database.run('BEGIN TRANSACTION');
+
+  for (const item of marketService.catalog) {
+    let price = item.basePrice;
+    // Daily volatility by asset type
+    const volatility = {
+      acao: 0.018, fii: 0.008, crypto: 0.04,
+      renda_fixa: 0.003, currency: 0.002
+    }[item.type] || 0.015;
+
+    for (let d = DAYS; d >= 0; d--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - d);
+      const dateStr = date.toISOString().slice(0, 10);
+
+      // Random walk: drift slightly upward with random noise
+      const change = (Math.random() - 0.48) * volatility;
+      price = Math.max(price * (1 + change), item.basePrice * 0.1);
+
+      database.run(
+        'INSERT INTO instrument_history (instrument_id, date, value) VALUES (?, ?, ?)',
+        [item.id, dateStr, Math.round(price * 100) / 100]
+      );
+    }
+  }
+
+  database.run('COMMIT');
+  saveDb();
+  console.log(`✅ Instrument history seeded (${marketService.catalog.length} instruments × ~${DAYS} days)`);
+}
+
+module.exports = { getDb, initializeDatabase, seedDemoData, seedInstrumentHistory, queryAll, queryOne, runSql };

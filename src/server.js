@@ -23,7 +23,7 @@ const fastify = require('fastify')({
 });
 
 const database = require('./config/database');
-const { initializeDatabase, seedDemoData, queryAll } = require('./config/database');
+const { initializeDatabase, seedDemoData, seedInstrumentHistory, queryAll } = require('./config/database');
 const { globalLimiterOptions } = require('./middleware/rateLimiter');
 const marketService = require('./services/marketService');
 
@@ -90,6 +90,7 @@ fastify.register(require('./routes/portfolio'), { prefix: '/api/portfolio' });
 fastify.register(require('./routes/transactions'), { prefix: '/api/transactions' });
 fastify.register(require('./routes/device'), { prefix: '/api/device' });
 fastify.register(require('./routes/metaRoutes'), { prefix: '/api/meta' });
+fastify.register(require('./routes/instruments'), { prefix: '/api/instruments' });
 
 // Trading & Market Routes (Fastify format)
 const tradeController = require('./controllers/tradeController');
@@ -158,6 +159,7 @@ async function startServer() {
     // Initialize database
     await initializeDatabase();
     await seedDemoData();
+    seedInstrumentHistory();
 
     // Initialize Market Service
     const assets = queryAll('SELECT DISTINCT ticker, current_price as current FROM portfolio');
