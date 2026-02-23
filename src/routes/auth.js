@@ -13,4 +13,6 @@ module.exports = async function (fastify, opts) {
   fastify.get('/sessions', { preHandler: [authenticate, checkSessionTimeout] }, authController.listSessions);
   fastify.delete('/sessions/:sessionId', { preHandler: [authenticate, checkSessionTimeout] }, authController.revokeSession);
   fastify.post('/verify-pin', { preHandler: [authenticate, checkSessionTimeout] }, authController.verifyPin);
+  fastify.get('/pin-status', { preHandler: [authenticate, checkSessionTimeout] }, authController.getPinStatus);
+  fastify.post('/set-pin', { preHandler: [authenticate, checkSessionTimeout] }, authController.setPin);
 };

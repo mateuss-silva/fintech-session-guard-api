@@ -427,4 +427,23 @@ async function verifyPin(req, reply) {
   }
 }
 
-module.exports = { register, login, refresh, logout, listSessions, revokeSession, verifyPin };
+async function getPinStatus(req, reply) {
+  const user = queryOne('SELECT pin_hash FROM users WHERE id = ?', [req.user.id]);
+  return reply.send({ hasPinConfigured: !!(user && user.pin_hash) });
+}
+
+async function setPin(req, reply) {
+  try {
+    const { pin } = req.body;
+    if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+      throw new ValidationError('PIN must be exactly 4 digits', 'INVALID_PIN_FORMAT');
+    }
+    const pinHash = await hashPassword(pin);
+    runSql('UPDATE users SET pin_hash = ? WHERE id = ?', [pinHash, req.user.id]);
+    return reply.send({ message: 'PIN configured successfully' });
+  } catch (error) {
+    throw error;
+  }
+}
+
+module.exports = { register, login, refresh, logout, listSessions, revokeSession, verifyPin, getPinStatus, setPin };
