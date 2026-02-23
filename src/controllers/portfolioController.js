@@ -36,9 +36,9 @@ const marketService = require('../services/marketService');
  */
 const { PassThrough } = require('stream');
 
-function _calculatePortfolio(userId) {
+function _calculatePortfolio(userId, watchlist = []) {
   const portfolioItems = queryAll(
-    'SELECT id, asset_name, asset_type, ticker, quantity, avg_price, updated_at FROM portfolio WHERE user_id = ? ORDER BY asset_type, asset_name', 
+    'SELECT id, asset_name, asset_type, ticker, quantity, avg_price, updated_at FROM portfolio WHERE user_id = ? AND quantity > 0 ORDER BY asset_type, asset_name', 
     [userId]
   );
   
@@ -48,12 +48,14 @@ function _calculatePortfolio(userId) {
   let totalAssets = 0;
 
   const assets = [];
+  const processedTickers = new Set();
 
   portfolioItems.forEach(item => {
+    processedTickers.add(item.ticker);
     if (item.ticker === 'BRL') {
       availableBalance = item.quantity;
     } else {
-      const catalogItem = marketService.catalog.find(c => c.ticker === item.ticker);
+      const catalogItem = marketService.catalogMap[item.ticker];
       const priceData = marketService.prices[item.ticker] || {};
       const currentPrice = priceData.current || item.avg_price;
       const investedVal = item.quantity * item.avg_price;
@@ -67,8 +69,9 @@ function _calculatePortfolio(userId) {
         id: item.id,
         instrumentId: catalogItem ? catalogItem.id : null,
         ticker: item.ticker,
-        name: item.asset_name,
-        type: item.asset_type,
+        name: item.asset_name || (catalogItem ? catalogItem.name : item.ticker),
+        type: item.asset_type || (catalogItem ? catalogItem.type : 'unknown'),
+        sector: catalogItem ? catalogItem.sector : null,
         quantity: item.quantity,
         avgPrice: item.avg_price,
         currentPrice: currentPrice,
@@ -81,6 +84,36 @@ function _calculatePortfolio(userId) {
       });
     }
   });
+
+  // Inject zero-balance watchlist items
+  if (Array.isArray(watchlist)) {
+    watchlist.forEach(ticker => {
+      if (!processedTickers.has(ticker) && ticker !== 'BRL') {
+        const catalogItem = marketService.catalogMap[ticker];
+        const priceData = marketService.prices[ticker] || {};
+        const currentPrice = priceData.current || (catalogItem ? catalogItem.basePrice : 0);
+
+        assets.push({
+          id: null,
+          instrumentId: catalogItem ? catalogItem.id : null,
+          ticker: ticker,
+          name: catalogItem ? catalogItem.name : ticker,
+          type: catalogItem ? catalogItem.type : 'unknown',
+          sector: catalogItem ? catalogItem.sector : null,
+          quantity: 0,
+          avgPrice: 0,
+          currentPrice: currentPrice,
+          currentValue: 0,
+          profit: 0,
+          variationPct: 0,
+          change: priceData.change || 0,
+          changePercent: priceData.changePercent || 0,
+          timestamp: priceData.timestamp || new Date().toISOString()
+        });
+        processedTickers.add(ticker);
+      }
+    });
+  }
 
   const totalBalance = totalCurrent + availableBalance;
   const byTypeMap = {};
@@ -121,17 +154,25 @@ function getPortfolio(req, reply) {
 function streamPortfolio(req, reply) {
   const userId = req.user.id;
   
+  // Extract watchlist from query or body
+  let watchlist = [];
+  if (req.method === 'POST' && req.body && req.body.watchlist) {
+    watchlist = req.body.watchlist;
+  } else if (req.query && req.query.watchlist) {
+    watchlist = req.query.watchlist.split(',').map(s => s.trim()).filter(s => s);
+  }
+
   reply.header('Content-Type', 'text/event-stream');
   reply.header('Cache-Control', 'no-cache');
   reply.header('X-Accel-Buffering', 'no'); 
 
-  console.log(`📡 New portfolio stream client for user ${userId}`);
+  console.log(`📡 New portfolio stream client for user ${userId} with watchlist: ${watchlist.join(',')}`);
 
   const stream = new PassThrough();
   
   // Send initial data
   try {
-    const initialData = _calculatePortfolio(userId);
+    const initialData = _calculatePortfolio(userId, watchlist);
     stream.write(`data: ${JSON.stringify(initialData)}\n\n`);
   } catch (err) {
     console.error('Error on initial portfolio stream send:', err);
@@ -140,7 +181,7 @@ function streamPortfolio(req, reply) {
   // Listen to market updates
   const updateListener = () => {
     try {
-      const currentData = _calculatePortfolio(userId);
+      const currentData = _calculatePortfolio(userId, watchlist);
       stream.write(`data: ${JSON.stringify(currentData)}\n\n`);
     } catch (err) {
       console.error('Error on portfolio stream update:', err);
