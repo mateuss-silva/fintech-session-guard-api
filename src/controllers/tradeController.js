@@ -9,6 +9,7 @@ const {
   NotFoundError,
   AppError
 } = require('../utils/errors');
+const { logger } = require('../middleware/logger');
 
 /**
  * Helper: Get user's BRL balance
@@ -26,12 +27,20 @@ function getBrlBalance(userId) {
  */
 async function verifyTransactionAuth(userId, pin, biometricToken) {
   if (biometricToken) {
+    logger.debug(`🤝 [HANDSHAKE] Trade Authentication: Validating biometric token ${biometricToken} in database...`);
     // Check if there's a recently verified biometric challenge for this user
     const challenge = queryOne(
       'SELECT * FROM biometric_challenges WHERE user_id = ? AND challenge_token = ? AND verified = 1 AND expires_at > CURRENT_TIMESTAMP',
       [userId, biometricToken]
     );
-    return !!challenge;
+    
+    if (challenge) {
+      logger.info(`✅ [HANDSHAKE] Biometric token ${biometricToken} is VALID and VERIFIED at ${challenge.verified_at}`);
+      return true;
+    } else {
+      logger.warn(`❌ [HANDSHAKE] Biometric token ${biometricToken} is INVALID, EXPIRED, or NOT VERIFIED`);
+      return false;
+    }
   }
 
   if (pin) {
@@ -40,6 +49,7 @@ async function verifyTransactionAuth(userId, pin, biometricToken) {
     return await bcrypt.compare(pin, user.pin_hash);
   }
 
+  logger.warn(`🚫 Transaction Authentication missing for user ${userId}`);
   return false;
 }
 
@@ -113,6 +123,7 @@ async function buy(req, reply) {
     }
 
     // Validation PIN/Bio
+    logger.info(`🔑 [HANDSHAKE] Processing trade auth for user ${req.user.id} using ${biometricToken ? 'BIOMETRICS' : 'PIN'}`);
     const isAuth = await verifyTransactionAuth(req.user.id, pin, biometricToken);
     if (!isAuth) {
       if (pin || biometricToken) {
@@ -160,6 +171,8 @@ async function buy(req, reply) {
       [transactionId, req.user.id, assetMeta.asset_name, ticker, totalCost, quantity, currentPrice]
     );
 
+    logger.success(`💰 BUY: ${req.user.id} bought ${quantity} ${ticker} for R$ ${totalCost.toFixed(2)}`);
+
     return reply.send({
       message: 'Buy successful',
       transaction: {
@@ -173,6 +186,7 @@ async function buy(req, reply) {
     });
 
   } catch (error) {
+    logger.error(`❌ BUY FAIL: ${req.user?.id} failed to buy ${req.body?.ticker}: ${error.message}`);
     throw error;
   }
 }
@@ -213,6 +227,7 @@ async function sell(req, reply) {
     }
 
     // Validation PIN/Bio
+    logger.info(`🔑 [HANDSHAKE] Processing trade auth for user ${req.user.id} using ${biometricToken ? 'BIOMETRICS' : 'PIN'}`);
     const isAuth = await verifyTransactionAuth(req.user.id, pin, biometricToken);
     if (!isAuth) {
       if (pin || biometricToken) {
@@ -263,6 +278,8 @@ async function sell(req, reply) {
       [transactionId, req.user.id, asset.asset_name, ticker, totalValue, quantity, currentPrice]
     );
 
+    logger.success(`💸 SELL: ${req.user.id} sold ${quantity} ${ticker} for R$ ${totalValue.toFixed(2)}`);
+
     return reply.send({
       message: 'Sell successful',
       transaction: {
@@ -276,6 +293,7 @@ async function sell(req, reply) {
     });
 
   } catch (error) {
+    logger.error(`❌ SELL FAIL: ${req.user?.id} failed to sell ${req.body?.ticker}: ${error.message}`);
     throw error;
   }
 }

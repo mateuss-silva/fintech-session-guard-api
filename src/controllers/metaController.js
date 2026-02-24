@@ -2,6 +2,7 @@
  * Controller for metadata and UI configuration.
  * Centralizes labels and descriptions to allow backend-driven UI updates.
  */
+const { logger } = require('../middleware/logger');
 
 const assetLabels = {
   'renda_fixa': 'Fixed Income',
@@ -50,10 +51,12 @@ const securityFeatures = [
 ];
 
 function getAssetLabels(req, res) {
+  logger.debug('🏷️ Asset labels fetched');
   res.json(assetLabels);
 }
 
 function getSecurityFeatures(req, res) {
+  logger.debug('🛡️ Security features fetched');
   res.json({
     status: 'active',
     timeout: 15,

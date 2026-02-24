@@ -1,4 +1,3 @@
-// Using fastify built-in logger features or simple hooks
 const chalk = require('chalk');
 
 /**
@@ -19,6 +18,39 @@ const sanitizeData = (data) => {
   });
   
   return sanitized;
+};
+
+const formatMessage = (level, message, context = null) => {
+  const date = chalk.gray(new Date().toLocaleTimeString());
+  let levelPart = '';
+  
+  switch (level) {
+    case 'info': levelPart = chalk.blue.bold('INFO'); break;
+    case 'warn': levelPart = chalk.yellow.bold('WARN'); break;
+    case 'error': levelPart = chalk.red.bold('ERROR'); break;
+    case 'success': levelPart = chalk.green.bold('SUCCESS'); break;
+    case 'debug': levelPart = chalk.magenta.bold('DEBUG'); break;
+  }
+
+  let line = `${chalk.dim('│')} ${levelPart.padEnd(10)} ${date} ${message}`;
+  
+  if (context) {
+    if (typeof context === 'object') {
+      line += chalk.gray(` ${JSON.stringify(sanitizeData(context))}`);
+    } else {
+      line += chalk.gray(` ${context}`);
+    }
+  }
+  
+  return line;
+};
+
+const logger = {
+  info: (msg, ctx) => console.log(formatMessage('info', msg, ctx)),
+  warn: (msg, ctx) => console.log(formatMessage('warn', msg, ctx)),
+  error: (msg, ctx) => console.log(formatMessage('error', msg, ctx)),
+  success: (msg, ctx) => console.log(formatMessage('success', msg, ctx)),
+  debug: (msg, ctx) => console.log(formatMessage('debug', msg, ctx)),
 };
 
 // Fastify Hooks for Request/Response Logging
@@ -56,8 +88,6 @@ const setupLogger = (fastify) => {
       requestBodyLog = chalk.gray(`\n   📥 Req Body: ${JSON.stringify(sanitizedBody)}`);
     }
 
-    // Fastify doesn't easily expose the raw response body in onResponse natively without a custom serializer or hook trick.
-    // For simplicity in this migration, we'll log the request and timing here.
     const logLine = [
       chalk.dim('│'),
       chalk.yellow('🌐'),
@@ -78,4 +108,4 @@ const setupLogger = (fastify) => {
   });
 };
 
-module.exports = setupLogger;
+module.exports = { setupLogger, logger };

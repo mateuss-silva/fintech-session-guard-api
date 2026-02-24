@@ -1,6 +1,6 @@
-const { v4: uuidv4 } = require('uuid');
 const { queryOne, queryAll, runSql } = require('../config/database');
 const { generateSecureToken } = require('../utils/crypto');
+const { logger } = require('../middleware/logger');
 
 /**
  * POST /api/device/register
@@ -23,6 +23,7 @@ function registerDevice(req, reply) {
     );
 
     if (existing) {
+      logger.info(`📱 Device already registered for user ${req.user.id}`, { deviceId: existing.id });
       return reply.send({
         message: 'Device already registered',
         device: {
@@ -41,6 +42,8 @@ function registerDevice(req, reply) {
       [deviceId, req.user.id, deviceFingerprint, platform, model || '']
     );
 
+    logger.success(`📱 New device registered: ${platform} ${model} for user ${req.user.id}`, { deviceId });
+
     return reply.code(201).send({
       message: 'Device registered successfully',
       device: {
@@ -52,7 +55,7 @@ function registerDevice(req, reply) {
       },
     });
   } catch (error) {
-    console.error('Register device error:', error);
+    logger.error(`❌ Register device error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }
@@ -114,9 +117,11 @@ function verifyDeviceIntegrity(req, reply) {
       response.warning = 'Device integrity issues detected. Some features may be restricted.';
     }
 
+    logger.info(`🛡️ Device integrity verified for user ${req.user.id}`, { deviceId, status: integrityStatus });
+
     return reply.send(response);
   } catch (error) {
-    console.error('Verify device error:', error);
+    logger.error(`❌ Verify device error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }
@@ -131,6 +136,7 @@ function listDevices(req, reply) {
       [req.user.id]
     );
 
+    logger.info(`📱 Device list fetched for user ${req.user.id}`);
     return reply.send({
       devices: devices.map((d) => ({
         id: d.id,
@@ -142,7 +148,7 @@ function listDevices(req, reply) {
       })),
     });
   } catch (error) {
-    console.error('List devices error:', error);
+    logger.error(`❌ List devices error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }
@@ -171,6 +177,7 @@ function createBiometricChallenge(req, reply) {
       [challengeId, req.user.id, challengeToken, operationType, expiresAt.toISOString()]
     );
 
+    logger.info(`🛡️ Biometric challenge created for user ${req.user.id}`, { operationType });
     return reply.send({
       message: 'Biometric challenge created',
       challengeToken,
@@ -179,7 +186,7 @@ function createBiometricChallenge(req, reply) {
       expiresInSeconds: 120,
     });
   } catch (error) {
-    console.error('Create challenge error:', error);
+    logger.error(`❌ Create challenge error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }
@@ -230,6 +237,8 @@ function verifyBiometric(req, reply) {
       [challenge.id]
     );
 
+    logger.success(`🔐 Biometric verified successfully for user ${req.user.id}`, { operation: challenge.operation_type });
+
     return reply.send({
       message: 'Biometric verified successfully',
       challengeToken,
@@ -237,7 +246,7 @@ function verifyBiometric(req, reply) {
       verified: true,
     });
   } catch (error) {
-    console.error('Verify biometric error:', error);
+    logger.error(`❌ Verify biometric error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }

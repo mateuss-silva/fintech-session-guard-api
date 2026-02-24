@@ -1,5 +1,5 @@
-const { queryOne, queryAll } = require('../config/database');
 const marketService = require('../services/marketService');
+const { logger } = require('../middleware/logger');
 
 /**
  * @swagger
@@ -144,9 +144,10 @@ function _calculatePortfolio(userId, watchlist = []) {
 function getPortfolio(req, reply) {
   try {
     const portfolioData = _calculatePortfolio(req.user.id);
+    logger.info(`📋 Portfolio fetched for user ${req.user.id}`);
     return reply.send(portfolioData);
   } catch (error) {
-    console.error('Portfolio error:', error);
+    logger.error(`❌ Portfolio error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }
@@ -175,7 +176,7 @@ function streamPortfolio(req, reply) {
     const initialData = _calculatePortfolio(userId, watchlist);
     stream.write(`data: ${JSON.stringify(initialData)}\n\n`);
   } catch (err) {
-    console.error('Error on initial portfolio stream send:', err);
+    logger.error(`❌ Error on initial portfolio stream send for user ${userId}: ${err.message}`);
   }
 
   // Listen to market updates
@@ -184,7 +185,7 @@ function streamPortfolio(req, reply) {
       const currentData = _calculatePortfolio(userId, watchlist);
       stream.write(`data: ${JSON.stringify(currentData)}\n\n`);
     } catch (err) {
-      console.error('Error on portfolio stream update:', err);
+      logger.error(`❌ Error on portfolio stream update for user ${userId}: ${err.message}`);
     }
   };
 

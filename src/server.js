@@ -72,7 +72,7 @@ fastify.register(require('@fastify/rate-limit'), {
 });
 
 // ─── Custom Logger Hook ──────────────────────────────────────────────
-const setupLogger = require('./middleware/logger');
+const { setupLogger } = require('./middleware/logger');
 setupLogger(fastify);
 
 // ─── Swagger Documentation ───────────────────────────────────────────

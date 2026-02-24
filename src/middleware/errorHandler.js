@@ -15,17 +15,20 @@ const errorHandler = (err, request, reply) => {
   }
 
   // Log the error
-  // In production, we'd use a real logger like Winston/Pino
+  const { logger } = require('./logger');
+
   if (statusCode >= 500) {
-    console.error('💥 Unhandled Exception:', {
+    logger.error(`💥 Unhandled Exception: ${err.message}`, {
       url: request.url,
       method: request.method,
-      error: err.message,
       stack: err.stack,
     });
   } else {
     // 4xx errors are usually operational/client errors
-    console.warn(`⚠️ API Error [${errorCode}]: ${message} (${request.method} ${request.url})`);
+    logger.warn(`⚠️ API Error [${errorCode}]: ${message}`, {
+      method: request.method,
+      url: request.url
+    });
   }
 
   reply.code(statusCode).send({

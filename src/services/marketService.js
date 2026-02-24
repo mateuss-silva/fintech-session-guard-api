@@ -141,7 +141,8 @@ class MarketService extends EventEmitter {
 
   startSimulation() {
     this.isRunning = true;
-    console.log('📈 Market simulation started');
+    const { logger } = require('../middleware/logger');
+    logger.info('📈 Market simulation started');
     setInterval(() => {
       this.updatePrices();
     }, this.updateInterval);
@@ -193,6 +194,11 @@ class MarketService extends EventEmitter {
     }
 
     this.emit('prices_updated', this.prices);
+    const { logger } = require('../middleware/logger');
+    const clientCount = Object.values(this.instrumentClients).reduce((acc, current) => acc + current.length, 0);
+    if (clientCount > 0) {
+      logger.debug(`📊 Broadcasted prices to ${clientCount} clients`);
+    }
     this.broadcastInstrumentPrices();
   }
 

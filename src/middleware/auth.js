@@ -43,6 +43,8 @@ function authenticate(request, reply, done) {
   );
 
   if (!session) {
+    const { logger } = require('./logger');
+    logger.warn(`🚫 Unauthorized: Session not found or inactive for user ${decoded.sub}`);
     reply.code(401).send({
       error: 'SESSION_INVALID',
       message: 'Session has been invalidated. Please login again.',
@@ -53,6 +55,8 @@ function authenticate(request, reply, done) {
   // Validate device binding
   if (decoded.deviceId && session.device_id && decoded.deviceId !== session.device_id) {
     const { runSql } = require('../config/database');
+    const { logger } = require('./logger');
+    logger.error(`⚠️ SECURITY ALERT: Device mismatch for user ${decoded.sub}. Session invalidated.`);
     runSql('UPDATE sessions SET is_active = 0 WHERE id = ?', [session.id]);
     reply.code(401).send({
       error: 'DEVICE_MISMATCH',

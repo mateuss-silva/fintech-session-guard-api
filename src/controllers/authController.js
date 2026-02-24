@@ -14,6 +14,7 @@ const {
   ConflictError,
   AppError
 } = require('../utils/errors');
+const { logger } = require('../middleware/logger');
 
 const REFRESH_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || '7d';
 
@@ -66,11 +67,14 @@ async function register(req, reply) {
     runSql('INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)',
       [userId, email, passwordHash, name]);
 
+    logger.success(`👤 User registered: ${email}`, { userId });
+
     return reply.code(201).send({
       message: 'User registered successfully',
       userId,
     });
   } catch (error) {
+    logger.error(`❌ Registration failed for ${req.body.email}: ${error.message}`);
     throw error;
   }
 }
@@ -137,6 +141,8 @@ async function login(req, reply) {
       [sessionId, user.id, deviceId || null, jti, req.ip, req.headers['user-agent'] || '']
     );
 
+    logger.success(`🔑 Login successful: ${email}`, { userId: user.id, deviceId: deviceId || 'unknown' });
+
     return reply.send({
       accessToken,
       refreshToken,
@@ -147,6 +153,7 @@ async function login(req, reply) {
       }
     });
   } catch (error) {
+    logger.warn(`🚫 Login failed for ${req.body?.email}: ${error.message}`);
     throw error;
   }
 }
@@ -248,6 +255,8 @@ async function refresh(req, reply) {
       [sessionId, decoded.sub, deviceId || null, jti, req.ip, req.headers['user-agent'] || '']
     );
 
+    logger.info(`🔄 Token refresh successful for user ${decoded.sub}`);
+
     return reply.send({
       message: 'Tokens refreshed successfully',
       accessToken: newAccessToken,
@@ -256,6 +265,7 @@ async function refresh(req, reply) {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '15m',
     });
   } catch (error) {
+    logger.error(`❌ Token refresh failed: ${error.message}`);
     throw error;
   }
 }
@@ -297,8 +307,10 @@ function logout(req, reply) {
       );
     }
 
+    logger.info(`👋 Logout successful`, { userId: req.user?.id });
     return reply.send({ message: 'Logged out successfully' });
   } catch (error) {
+    logger.error(`❌ Logout failed: ${error.message}`);
     throw error;
   }
 }
@@ -418,11 +430,14 @@ async function verifyPin(req, reply) {
       [uuidv4(), req.user.id, challengeToken, 'PIN_VERIFICATION', expiresAt.toISOString(), 1, new Date().toISOString()]
     );
 
+    logger.info(`✅ PIN verified for user ${req.user.id}`);
+
     return reply.send({
       message: 'PIN verified',
       challengeToken,
     });
   } catch (error) {
+    logger.warn(`🚫 PIN verification failed for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }
@@ -456,8 +471,10 @@ async function getBiometricChallenge(req, reply) {
       [uuidv4(), req.user.id, challenge, 'BIOMETRIC_AUTH', expiresAt.toISOString()]
     );
 
+    logger.info(`🛡️ [HANDSHAKE] Biometric challenge generated for user ${req.user.id}: ${challenge}`);
     return reply.send({ challenge });
   } catch (error) {
+    logger.error(`❌ Failed to generate biometric challenge: ${error.message}`);
     throw error;
   }
 }
@@ -477,6 +494,8 @@ async function verifyBiometric(req, reply) {
       throw new AuthError('Invalid biometric signature', 'INVALID_SIGNATURE');
     }
 
+    logger.debug(`🤝 [HANDSHAKE] Verifying biometric signature for challenge: ${challenge}`);
+
     // Find the challenge in the DB
     const storedChallenge = queryOne(
       'SELECT * FROM biometric_challenges WHERE challenge_token = ? AND user_id = ? AND operation_type = ? AND expires_at > CURRENT_TIMESTAMP',
@@ -493,10 +512,14 @@ async function verifyBiometric(req, reply) {
       [storedChallenge.id]
     );
 
+    logger.success(`🔐 [HANDSHAKE] Biometric verification successful for user ${req.user.id}. Challenge ${challenge} is now marked as VERIFIED.`);
+
     // For simplicity in this demo, the challenge token itself becomes the biometricToken 
     // that the trade logic expects.
+    logger.success(`🔐 Biometric verification successful for user ${req.user.id}`);
     return reply.send({ biometricToken: challenge });
   } catch (error) {
+    logger.warn(`🚫 Biometric verification failed for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }

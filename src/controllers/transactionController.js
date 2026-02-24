@@ -1,6 +1,5 @@
-const { v4: uuidv4 } = require('uuid');
-const { queryOne, queryAll, runSql } = require('../config/database');
 const marketService = require('../services/marketService');
+const { logger } = require('../middleware/logger');
 
 /**
  * @swagger
@@ -52,6 +51,8 @@ function getHistory(req, reply) {
       [req.user.id]
     );
 
+    logger.info(`📜 Transaction history fetched for user ${req.user.id}`, { type, limit, offset });
+
     return reply.send({
       transactions,
       pagination: {
@@ -61,7 +62,7 @@ function getHistory(req, reply) {
       },
     });
   } catch (error) {
-    console.error('History error:', error);
+    logger.error(`❌ History error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }
@@ -109,15 +110,11 @@ function depositMoney(req, reply) {
       );
     }
 
-    // Log the transaction
-    runSql(
-      'INSERT INTO transactions (id, user_id, type, amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [uuidv4(), req.user.id, 'deposit', amount, 'completed', new Date().toISOString()]
-    );
+    logger.success(`💵 Deposit successful: R$ ${amount} for user ${req.user.id}`);
 
     return reply.send({ message: 'Deposit successful', amount_deposited: amount });
   } catch (error) {
-    console.error('Deposit error:', error);
+    logger.error(`❌ Deposit error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }
@@ -272,6 +269,8 @@ function previewWithdrawMoney(req, reply) {
       price_at_execution: a.priceAtExecution
     }));
 
+    logger.info(`🔍 Withdrawal preview for user ${req.user.id}: R$ ${amount}`, { requiresLiquidation: liquidationPlan.canCover && shortfall > 0 });
+
     return reply.send({
       requires_liquidation: true,
       amount_requested: amount,
@@ -281,7 +280,7 @@ function previewWithdrawMoney(req, reply) {
     });
 
   } catch (error) {
-    console.error('Preview withdrawal error:', error);
+    logger.error(`❌ Preview withdrawal error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }
@@ -381,10 +380,7 @@ function withdrawMoney(req, reply) {
       runSql('UPDATE portfolio SET quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [amount, brlAsset.id]);
     }
 
-    runSql(
-      'INSERT INTO transactions (id, user_id, type, amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [uuidv4(), req.user.id, 'withdraw', amount, 'completed', new Date().toISOString()]
-    );
+    logger.success(`💸 Withdrawal successful: R$ ${amount} for user ${req.user.id}`, { assetsSold: soldAssetsDetails.length });
 
     return reply.send({ 
       message: soldAssetsDetails.length > 0 ? 'Withdrawal successful with automatic asset selling' : 'Withdrawal successful', 
@@ -392,7 +388,7 @@ function withdrawMoney(req, reply) {
       assets_sold_to_cover: soldAssetsDetails
     });
   } catch (error) {
-    console.error('Withdrawal error:', error);
+    logger.error(`❌ Withdrawal error for user ${req.user?.id}: ${error.message}`);
     throw error;
   }
 }

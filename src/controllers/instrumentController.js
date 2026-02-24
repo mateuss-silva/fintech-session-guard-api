@@ -3,8 +3,8 @@
  * GET /api/instruments/:id/history?range=1M|6M|1Y|3Y|5Y
  */
 
-const { queryAll, queryOne } = require('../config/database');
 const marketService = require('../services/marketService');
+const { logger } = require('../middleware/logger');
 
 // Metadata map for each instrument
 const instrumentMeta = {
@@ -52,55 +52,62 @@ function parseRange(range) {
 }
 
 async function getInstrumentHistory(req, reply) {
-  const { id } = req.params;
-  const range = req.query.range || '1Y';
-  const { days, weekly } = parseRange(range);
+  try {
+    const { id } = req.params;
+    const range = req.query.range || '1Y';
+    const { days, weekly } = parseRange(range);
 
-  // Verify instrument exists
-  const instrument = marketService.catalog.find(i => i.id === id);
-  if (!instrument) {
-    return reply.code(404).send({ error: 'Instrument not found' });
-  }
-
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
-  const cutoffISO = cutoffDate.toISOString().slice(0, 10);
-
-  let rows = queryAll(
-    'SELECT date, value FROM instrument_history WHERE instrument_id = ? AND date >= ? ORDER BY date ASC',
-    [id, cutoffISO]
-  );
-
-  // Aggregate to weekly if needed (keep last value per ISO week)
-  if (weekly && rows.length > 0) {
-    const weekMap = new Map();
-    for (const row of rows) {
-      const d = new Date(row.date);
-      const year = d.getUTCFullYear();
-      // ISO week: Monday-based
-      const startOfYear = new Date(Date.UTC(year, 0, 1));
-      const weekNum = Math.ceil(((d - startOfYear) / 86400000 + startOfYear.getUTCDay() + 1) / 7);
-      const key = `${year}-W${String(weekNum).padStart(2, '0')}`;
-      weekMap.set(key, row); // last date in week wins
+    // Verify instrument exists
+    const instrument = marketService.catalog.find(i => i.id === id);
+    if (!instrument) {
+      return reply.code(404).send({ error: 'Instrument not found' });
     }
-    rows = Array.from(weekMap.values());
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffISO = cutoffDate.toISOString().slice(0, 10);
+
+    let rows = queryAll(
+      'SELECT date, value FROM instrument_history WHERE instrument_id = ? AND date >= ? ORDER BY date ASC',
+      [id, cutoffISO]
+    );
+
+    // Aggregate to weekly if needed (keep last value per ISO week)
+    if (weekly && rows.length > 0) {
+      const weekMap = new Map();
+      for (const row of rows) {
+        const d = new Date(row.date);
+        const year = d.getUTCFullYear();
+        // ISO week: Monday-based
+        const startOfYear = new Date(Date.UTC(year, 0, 1));
+        const weekNum = Math.ceil(((d - startOfYear) / 86400000 + startOfYear.getUTCDay() + 1) / 7);
+        const key = `${year}-W${String(weekNum).padStart(2, '0')}`;
+        weekMap.set(key, row); // last date in week wins
+      }
+      rows = Array.from(weekMap.values());
+    }
+
+    const meta = instrumentMeta[id] || {
+      description: `${instrument.name} — ${instrument.sector}`,
+      investorProfile: 'Moderate'
+    };
+
+    logger.info(`📈 Instrument history fetched: ${instrument.ticker} (${range})`);
+
+    return reply.send({
+      instrumentId: id,
+      ticker: instrument.ticker,
+      name: instrument.name,
+      type: instrument.type,
+      sector: instrument.sector,
+      description: meta.description,
+      investorProfile: meta.investorProfile,
+      history: rows.map(r => ({ date: r.date, value: r.value }))
+    });
+  } catch (error) {
+    logger.error(`❌ Instrument history error: ${error.message}`);
+    throw error;
   }
-
-  const meta = instrumentMeta[id] || {
-    description: `${instrument.name} — ${instrument.sector}`,
-    investorProfile: 'Moderate'
-  };
-
-  return reply.send({
-    instrumentId: id,
-    ticker: instrument.ticker,
-    name: instrument.name,
-    type: instrument.type,
-    sector: instrument.sector,
-    description: meta.description,
-    investorProfile: meta.investorProfile,
-    history: rows.map(r => ({ date: r.date, value: r.value }))
-  });
 }
 
 module.exports = { getInstrumentHistory };
