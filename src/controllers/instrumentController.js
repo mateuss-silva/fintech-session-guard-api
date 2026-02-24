@@ -3,6 +3,7 @@
  * GET /api/instruments/:id/history?range=1M|6M|1Y|3Y|5Y
  */
 
+const { queryOne, queryAll } = require('../config/database');
 const marketService = require('../services/marketService');
 const { logger } = require('../middleware/logger');
 

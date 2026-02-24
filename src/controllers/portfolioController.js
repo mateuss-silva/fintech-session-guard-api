@@ -1,3 +1,4 @@
+const { queryOne, queryAll } = require('../config/database');
 const marketService = require('../services/marketService');
 const { logger } = require('../middleware/logger');
 

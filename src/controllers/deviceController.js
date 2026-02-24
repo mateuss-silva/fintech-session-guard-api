@@ -1,3 +1,4 @@
+const { v4: uuidv4 } = require('uuid');
 const { queryOne, queryAll, runSql } = require('../config/database');
 const { generateSecureToken } = require('../utils/crypto');
 const { logger } = require('../middleware/logger');
