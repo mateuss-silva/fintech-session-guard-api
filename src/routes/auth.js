@@ -15,4 +15,8 @@ module.exports = async function (fastify, opts) {
   fastify.post('/verify-pin', { preHandler: [authenticate, checkSessionTimeout] }, authController.verifyPin);
   fastify.get('/pin-status', { preHandler: [authenticate, checkSessionTimeout] }, authController.getPinStatus);
   fastify.post('/set-pin', { preHandler: [authenticate, checkSessionTimeout] }, authController.setPin);
+
+  // Biometric routes
+  fastify.get('/bio/challenge', { preHandler: [authenticate, checkSessionTimeout] }, authController.getBiometricChallenge);
+  fastify.post('/bio/verify', { preHandler: [authenticate, checkSessionTimeout] }, authController.verifyBiometric);
 };

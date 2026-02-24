@@ -446,4 +446,71 @@ async function setPin(req, reply) {
   }
 }
 
-module.exports = { register, login, refresh, logout, listSessions, revokeSession, verifyPin, getPinStatus, setPin };
+async function getBiometricChallenge(req, reply) {
+  try {
+    const challenge = uuidv4();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
+
+    runSql(
+      'INSERT INTO biometric_challenges (id, user_id, challenge_token, operation_type, expires_at) VALUES (?, ?, ?, ?, ?)',
+      [uuidv4(), req.user.id, challenge, 'BIOMETRIC_AUTH', expiresAt.toISOString()]
+    );
+
+    return reply.send({ challenge });
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function verifyBiometric(req, reply) {
+  try {
+    const { challenge, signature } = req.body;
+
+    if (!challenge || !signature) {
+      throw new ValidationError('Challenge and signature are required');
+    }
+
+    // In this challenge/demo, we accept a dummy signature 'local-auth-success-' + challenge
+    // In a real production app, this would involve verifying a cryptographic signature
+    const expectedSignature = `local-auth-success-${challenge}`;
+    if (signature !== expectedSignature) {
+      throw new AuthError('Invalid biometric signature', 'INVALID_SIGNATURE');
+    }
+
+    // Find the challenge in the DB
+    const storedChallenge = queryOne(
+      'SELECT * FROM biometric_challenges WHERE challenge_token = ? AND user_id = ? AND operation_type = ? AND expires_at > CURRENT_TIMESTAMP',
+      [challenge, req.user.id, 'BIOMETRIC_AUTH']
+    );
+
+    if (!storedChallenge) {
+      throw new AuthError('Invalid or expired biometric challenge', 'INVALID_CHALLENGE');
+    }
+
+    // Mark as verified
+    runSql(
+      'UPDATE biometric_challenges SET verified = 1, verified_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [storedChallenge.id]
+    );
+
+    // For simplicity in this demo, the challenge token itself becomes the biometricToken 
+    // that the trade logic expects.
+    return reply.send({ biometricToken: challenge });
+  } catch (error) {
+    throw error;
+  }
+}
+
+module.exports = {
+  register,
+  login,
+  refresh,
+  logout,
+  listSessions,
+  revokeSession,
+  verifyPin,
+  getPinStatus,
+  setPin,
+  getBiometricChallenge,
+  verifyBiometric,
+};
