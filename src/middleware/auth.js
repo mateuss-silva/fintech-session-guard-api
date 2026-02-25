@@ -46,8 +46,8 @@ function authenticate(request, reply, done) {
     const { logger } = require('./logger');
     logger.warn(`🚫 Unauthorized: Session not found or inactive for user ${decoded.sub}`);
     reply.code(401).send({
-      error: 'SESSION_INVALID',
-      message: 'Session has been invalidated. Please login again.',
+      error: 'SESSION_EXPIRED',
+      message: 'Session has been invalidated or expired. Please login again.',
     });
     return;
   }

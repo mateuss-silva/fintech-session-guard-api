@@ -230,8 +230,14 @@ async function refresh(req, reply) {
       [storedToken.id]
     );
 
-    // Invalidate old session
-    runSql('UPDATE sessions SET is_active = 0 WHERE user_id = ? AND is_active = 1', [decoded.sub]);
+    // Invalidate old session(s) for this specific device (if provided)
+    // This prevents a refresh on one device from killing sessions on another.
+    if (deviceId) {
+      runSql('UPDATE sessions SET is_active = 0 WHERE user_id = ? AND device_id = ? AND is_active = 1', [decoded.sub, deviceId]);
+    } else {
+      // If no device ID, we fallback to invalidating all (though modern apps should always have deviceId)
+      runSql('UPDATE sessions SET is_active = 0 WHERE user_id = ? AND is_active = 1', [decoded.sub]);
+    }
 
     // Generate new token pair (same family)
     const { token: newAccessToken, jti } = generateAccessToken(decoded.sub, deviceId);
